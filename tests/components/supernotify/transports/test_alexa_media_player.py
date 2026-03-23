@@ -13,20 +13,19 @@ Covers:
              tts_char_speed, string boolean "false" handling)
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from custom_components.supernotify.transports.alexa_media_player import (
-    AlexaMediaPlayerTransport,
     _BASE_DURATION,
     _CHAR_WEIGHT,
     _MUSIC_RESUME_DELAY,
     _PAUSE_WEIGHT,
+    PAUSE_CHARS,
+    AlexaMediaPlayerTransport,
     _estimate_tts_duration,
     _to_bool,
-    PAUSE_CHARS,
 )
 
 
@@ -236,8 +235,9 @@ class TestPostAnnounce:
     async def test_resumes_music_after_delay(self):
         t = _make_transport()
         states = {"media_player.sala": {"volume": 0.5, "playing": True}}
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             await t._post_announce(states, restore_volume=True, pause_music=True)
             mock_sleep.assert_awaited_once_with(_MUSIC_RESUME_DELAY)
         assert "media_play" in _service_names(t)
@@ -246,8 +246,9 @@ class TestPostAnnounce:
     async def test_no_resume_when_was_not_playing(self):
         t = _make_transport()
         states = {"media_player.ufficio": {"volume": 0.5, "playing": False}}
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             await t._post_announce(states, restore_volume=True, pause_music=True)
             mock_sleep.assert_not_awaited()
         assert "media_play" not in _service_names(t)
@@ -272,8 +273,7 @@ class TestDeliver:
     async def test_volume_set_and_restored(self):
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.4}})
         envelope = _make_envelope("Test", data={"volume": 0.9, "type": "announce"})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             result = await t.deliver(envelope)
         assert result is True
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
@@ -285,8 +285,7 @@ class TestDeliver:
     async def test_volume_not_forwarded_to_alexa(self):
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.5}})
         envelope = _make_envelope("Test", data={"volume": 0.8, "type": "announce"})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         action_data = t.call_action.call_args.kwargs.get("action_data", {})
         assert "volume" not in action_data.get("data", {})
@@ -296,8 +295,7 @@ class TestDeliver:
     async def test_restore_volume_false(self):
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.4}})
         envelope = _make_envelope("Test", data={"volume": 0.9, "restore_volume": False})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
         assert len(vol_calls) == 1
@@ -307,8 +305,7 @@ class TestDeliver:
         """restore_volume: 'false' (YAML string) must be treated as False."""
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.4}})
         envelope = _make_envelope("Test", data={"volume": 0.9, "restore_volume": "false"})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
         assert len(vol_calls) == 1
@@ -317,10 +314,8 @@ class TestDeliver:
     async def test_pause_music_string_false(self):
         """pause_music: 'false' (YAML string) must be treated as False."""
         t = _make_transport({"media_player.sala": {"state": "playing", "volume_level": 0.5}})
-        envelope = _make_envelope("Test", data={"volume": 0.8, "pause_music": "false"},
-                                  entity_ids=["media_player.sala"])
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        envelope = _make_envelope("Test", data={"volume": 0.8, "pause_music": "false"}, entity_ids=["media_player.sala"])
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         assert "media_pause" not in _service_names(t)
 
@@ -328,8 +323,7 @@ class TestDeliver:
     async def test_volume_fallback_restored(self):
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": None}})
         envelope = _make_envelope("Test", data={"volume": 0.9, "volume_fallback": 0.55})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
         levels = [c.args[2]["volume_level"] for c in vol_calls]
@@ -340,8 +334,7 @@ class TestDeliver:
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.5}})
         t.hass_api.call_service = AsyncMock(side_effect=Exception("offline"))
         envelope = _make_envelope("Test", data={"volume": 0.8})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             result = await t.deliver(envelope)
         assert result is True
 
@@ -349,8 +342,7 @@ class TestDeliver:
     async def test_music_paused_and_resumed(self):
         t = _make_transport({"media_player.sala": {"state": "playing", "volume_level": 0.5}})
         envelope = _make_envelope("Test", data={"volume": 0.8}, entity_ids=["media_player.sala"])
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         names = _service_names(t)
         assert "media_pause" in names
@@ -361,11 +353,10 @@ class TestDeliver:
         """Jinja2 volume template must be resolved to float before volume_set."""
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.3}})
         t.hass_api.template.return_value.async_render.return_value = "0.65"
-        envelope = _make_envelope("Test", data={
-            "volume": "{{ (states('input_number.notifier_morning_volume') | float(40)) / 100 }}"
-        })
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        envelope = _make_envelope(
+            "Test", data={"volume": "{{ (states('input_number.notifier_morning_volume') | float(40)) / 100 }}"}
+        )
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
         levels = [c.args[2]["volume_level"] for c in vol_calls]
@@ -376,8 +367,7 @@ class TestDeliver:
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.3}})
         t.hass_api.template.return_value.async_render.side_effect = Exception("template error")
         envelope = _make_envelope("Test", data={"volume": "{{ invalid }}"})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock):
+        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             result = await t.deliver(envelope)
         assert result is True
         assert "volume_set" not in _service_names(t)
@@ -386,8 +376,9 @@ class TestDeliver:
     async def test_wait_for_tts_blocks(self):
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.5}})
         envelope = _make_envelope("Ciao", data={"wait_for_tts": True})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             await t.deliver(envelope)
             mock_sleep.assert_awaited_once()
             assert mock_sleep.call_args.args[0] >= _BASE_DURATION
@@ -396,8 +387,9 @@ class TestDeliver:
     async def test_wait_for_tts_false_no_sleep_without_volume(self):
         t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.5}})
         envelope = _make_envelope("Ciao", data={})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             await t.deliver(envelope)
             mock_sleep.assert_not_awaited()
 
@@ -407,8 +399,9 @@ class TestDeliver:
         msg = "abc"
         fast_speed = 0.001
         envelope = _make_envelope(msg, data={"wait_for_tts": True, "tts_char_speed": fast_speed})
-        with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep",
-                   new_callable=AsyncMock) as mock_sleep:
+        with patch(
+            "custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock
+        ) as mock_sleep:
             await t.deliver(envelope)
             duration = mock_sleep.call_args.args[0]
         expected = _BASE_DURATION + 3 * fast_speed
