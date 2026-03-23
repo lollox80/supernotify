@@ -86,7 +86,7 @@ class EventArchiver(ArchiveDestination):
             if diagnostics & OutcomeSelection.PARTIAL_DELIVERY:
                 _LOGGER.info("SUPERNOTIFY archiving partial delivery notifications as %s events", event_name)
 
-            if diagnostics & OutcomeSelection.NO_DELIVERY:
+            if diagnostics & OutcomeSelection.FALLBACK_DELIVERY:
                 _LOGGER.info("SUPERNOTIFY archiving fallback notifications as %s events", event_name)
             if diagnostics & OutcomeSelection.NO_DELIVERY:
                 _LOGGER.info("SUPERNOTIFY archiving no delivery notifications as %s events", event_name)

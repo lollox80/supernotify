@@ -81,8 +81,10 @@ class Envelope(DupeCheckable):
             self._enabled_scenarios = {}
             self.id = str(uuid.uuid1())
         if data:
-            self.data = copy.deepcopy(delivery_config_data) if delivery_config_data else {}
-            self.data |= data
+            self.data = copy.deepcopy(data)
+            if delivery_config_data:
+                # notification-level delivery override wins over scenario/delivery data
+                self.data |= delivery_config_data
         else:
             self.data = delivery_config_data if delivery_config_data else {}
 
