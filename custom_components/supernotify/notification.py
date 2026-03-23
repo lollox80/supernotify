@@ -698,6 +698,13 @@ class Notification(ArchivableObject):
             computed_target = delivery.select_targets(computed_target)
             self.debug_trace.record_target(delivery.name, "504_delivery_selection", computed_target)
 
+        # If the action call explicitly specified a target for this delivery, it takes
+        # precedence over all resolved/merged targets above.
+        delivery_override: DeliveryCustomization | None = self.delivery_overrides.get(delivery.name)
+        if delivery_override and delivery_override.target and delivery_override.target.has_targets():
+            computed_target = delivery.select_targets(delivery_override.target)
+            self.debug_trace.record_target(delivery.name, "600_delivery_override_target", computed_target)
+
         split_targets: list[Target] = computed_target.split_by_target_data()
         self.debug_trace.record_target(delivery.name, "610_delivery_split_targets", split_targets)
 
