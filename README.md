@@ -116,14 +116,18 @@ You can however do a lot with only 2 lines of copy-paste config, using the [exam
         message: Hello! Testing this new Supernotify thing sending to everyone's mobile apps
 ```
 
-## Also From Rhizomatics
 
-- [updates2mqtt](https://updates2mqtt.rhizomatics.org.uk) - Automatically update self-hosted Docker containers via Home Assistant's Updates UI, or any other MQTT consumer
-- [AutoArm](https://autoarm.rhizomatics.org.uk) - Automate state transitions for Home Assistant alarm control panels
-- [ANPR2MQTT](https://anpr2mqtt.rhizomatics.org.uk) - Integrate with ANPR or face detection cameras via the file system, with image analysis and DVLA integration
-- [Remote Logger](https://remote-logger.rhizomatics.org.uk) - Log Home Assistant system log and optionally other events to Syslog or OpenTelemetry (OTEL OTLP)
-- [awesome-mqtt](https://github.com/rhizomatics/awesome-mqtt) -  Curated list of MQTT resources
+##  Rhizomatics Open Source for Home Assistant
 
+### HACS
+- [AutoArm](https://autoarm.rhizomatics.org.uk) - Automatically arm and disarm Home Assistant alarm control panels using physical buttons, presence, calendars, sun and more
+- [Remote Logger](https://remote-logger.rhizomatics.org.uk) - OpenTelemetry (OTLP) and Syslog event capture for Home Assistant
+
+
+### Python / Docker
+
+- [Anpr2MQTT](https://anpr2mqtt.rhizomatics.org.uk) - Integrate with ANPR/ALPR licence plate cameras via file system (NAS/FTP) to MQTT with optional image analysis and UK DVLA integration.
+- [Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk) - Automatically notify via MQTT on Docker image updates, with advanced handling to extract versions and release notes from images, and option to remotely pull and restart containers from Home Assistant. Also available on [PyPI](https://pypi.org/project/updates2mqtt/)
 
 [hacs]: https://hacs.xyz
 [hacsbadge]: https://img.shields.io/badge/HACS-Default-blue.svg
