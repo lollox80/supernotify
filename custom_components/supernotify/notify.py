@@ -450,7 +450,7 @@ class SupernotifyAction(BaseNotificationService):
             self.last_notification = notification
             await self.context.archive.archive(notification)
             _LOGGER.debug(
-                "SUPERNOTIFY %s deliveries, %s failed, %s skipped, % suppressed",
+                "SUPERNOTIFY %s deliveries, %s failed, %s skipped, %s suppressed",
                 notification.delivered,
                 notification.failed,
                 notification.skipped,

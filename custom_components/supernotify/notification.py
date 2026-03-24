@@ -15,6 +15,7 @@ from .common import ensure_list, nullable_ensure_list, sanitize
 from .const import (
     ATTR_ACTION_GROUPS,
     ATTR_ACTIONS,
+    ATTR_CHANNEL_MESSAGE,
     ATTR_DEBUG,
     ATTR_DELIVERY,
     ATTR_DELIVERY_SELECTION,
@@ -697,6 +698,13 @@ class Notification(ArchivableObject):
             computed_target = delivery.select_targets(computed_target)
             self.debug_trace.record_target(delivery.name, "504_delivery_selection", computed_target)
 
+        # If the action call explicitly specified a target for this delivery, it takes
+        # precedence over all resolved/merged targets above.
+        delivery_override: DeliveryCustomization | None = self.delivery_overrides.get(delivery.name)
+        if delivery_override and delivery_override.target and delivery_override.target.has_targets():
+            computed_target = delivery.select_targets(delivery_override.target)
+            self.debug_trace.record_target(delivery.name, "600_delivery_override_target", computed_target)
+
         split_targets: list[Target] = computed_target.split_by_target_data()
         self.debug_trace.record_target(delivery.name, "610_delivery_split_targets", split_targets)
 
@@ -767,7 +775,11 @@ class Notification(ArchivableObject):
             if target.has_resolved_target() or delivery.target_required != TargetRequired.ALWAYS:
                 envelope_data = {}
                 envelope_data.update(delivery.data)
-                envelope_data.update(self.extra_data)  # action call data
+                envelope_data.update({
+                    k: v
+                    for k, v in self.extra_data.items()
+                    if k not in (ATTR_FORCE_RESEND, ATTR_CHANNEL_MESSAGE, "spoken_message")
+                })  # action call data
                 if target.target_data:
                     envelope_data.update(target.target_data)
                 # scenario applied at cross-delivery level in apply_enabled_scenarios
