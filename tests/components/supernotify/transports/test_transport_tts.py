@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from homeassistant.const import CONF_ACTION, CONF_OPTIONS, CONF_TARGET
 from homeassistant.core import HomeAssistant
 
-from custom_components.supernotify.const import CONF_DATA, CONF_DELIVERY, CONF_TRANSPORT, TRANSPORT_TTS
+from custom_components.supernotify.const import ATTR_SPOKEN_MESSAGE, CONF_DATA, CONF_DELIVERY, CONF_TRANSPORT, TRANSPORT_TTS
 from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.model import Target
 from custom_components.supernotify.notification import Notification
@@ -37,6 +37,36 @@ async def test_transport_tts() -> None:
             "message": "testing 123",
             "cache": False,
             "options": {"preferred_format": "wav"},
+            "media_player_entity_id": "media_player.kitchen_speakers",
+            "entity_id": "tts.home_assistant_cloud",
+        },
+        blocking=False,
+        context=None,
+        target={"entity_id": "tts.home_assistant_cloud"},
+        return_response=False,
+    )
+
+
+async def test_transport_spoken_msg_override() -> None:
+    ctx = TestingContext(
+        deliveries={
+            "all_speakers": {
+                CONF_TRANSPORT: TRANSPORT_TTS,
+                CONF_TARGET: ["media_player.kitchen_speakers"],
+            }
+        },
+        services={"tts": ["speak"]},
+    )
+    await ctx.test_initialize()
+    n = Notification(ctx, "testing 123", action_data={CONF_DELIVERY: "all_speakers", ATTR_SPOKEN_MESSAGE: "yoo hoo"})
+    await n.initialize()
+    await n.deliver()
+
+    ctx.hass.services.async_call.assert_called_with(  # type: ignore
+        "tts",
+        "speak",
+        service_data={
+            "message": "yoo hoo",
             "media_player_entity_id": "media_player.kitchen_speakers",
             "entity_id": "tts.home_assistant_cloud",
         },

@@ -53,6 +53,15 @@ TRANSPORTS = """
 notify_entity:
     enabled: false
 """
+RECIPIENTS = """
+    - person: person.joe_mcphee
+      email: joe.mcphee@home.mail.net
+      phone_number: "+3294924848"
+      mobile_devices:
+        - mobile_app_id: mobile_app_joe_nokia
+    - person: person.jabilee_sokata
+      email: jab@sokata.family.net
+"""
 
 
 async def test_simple_create() -> None:
@@ -109,6 +118,56 @@ async def test_explicit_delivery() -> None:
     await uut.initialize()
     assert uut.delivery_selection == DELIVERY_SELECTION_IMPLICIT
     assert list(uut.selected_deliveries) == unordered(["mobile", "plain_email", "chime"])
+
+
+async def test_channel_specific_message() -> None:
+    ctx = TestingContext(
+        deliveries=DELIVERIES,
+        transports=TRANSPORTS,
+        recipients=RECIPIENTS,
+    )
+    await ctx.test_initialize()
+
+    uut = Notification(
+        ctx,
+        "testing 123",
+        action_data={CONF_DELIVERY: {"mobile": {CONF_DATA: {"message": "buzz", "title": "HASS"}}}},
+    )
+    await uut.initialize()
+    await uut.deliver()
+    mobile_envelope = next(e for e in uut.delivered_envelopes if e.delivery_name == "mobile")
+    email_envelope = next(e for e in uut.delivered_envelopes if e.delivery_name == "plain_email")
+
+    assert mobile_envelope.message == "buzz"
+    assert mobile_envelope.title == "HASS"
+
+    assert email_envelope.message == "testing 123"
+    assert email_envelope.title is None
+
+
+async def test_channel_transport_override() -> None:
+    ctx = TestingContext(
+        deliveries=DELIVERIES,
+        transports=TRANSPORTS,
+        recipients=RECIPIENTS,
+    )
+    await ctx.test_initialize()
+
+    uut = Notification(
+        ctx,
+        "testing 123",
+        action_data={CONF_DELIVERY: {"mobile_push": {CONF_DATA: {"message": "buzz", "title": "HASS"}}}},
+    )
+    await uut.initialize()
+    await uut.deliver()
+    mobile_envelope = next(e for e in uut.delivered_envelopes if e.delivery_name == "mobile")
+    email_envelope = next(e for e in uut.delivered_envelopes if e.delivery_name == "plain_email")
+
+    assert mobile_envelope.message == "buzz"
+    assert mobile_envelope.title == "HASS"
+
+    assert email_envelope.message == "testing 123"
+    assert email_envelope.title is None
 
 
 async def test_custom_priority() -> None:
@@ -326,11 +385,11 @@ async def test_snapshot_url() -> None:
     await uut.initialize()
     original_image_path: Path = Path(tempfile.gettempdir()) / "image_a.jpg"
     with patch("custom_components.supernotify.media_grab.snapshot_from_url", return_value=original_image_path) as mock_snapshot:
-        retrieved_image_path = await grab_image(uut, "example", uut.context)
+        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
         assert retrieved_image_path == original_image_path
         assert mock_snapshot.called
         mock_snapshot.reset_mock()
-        retrieved_image_path = await grab_image(uut, "example", uut.context)
+        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
         assert retrieved_image_path == original_image_path
         # notification caches image for multiple deliveries
         mock_snapshot.assert_not_called()
@@ -347,11 +406,11 @@ async def test_camera_entity() -> None:
     await uut.initialize()
     original_image_path: Path = Path(tempfile.gettempdir()) / "image_b.jpg"
     with patch("custom_components.supernotify.media_grab.snap_camera", return_value=original_image_path) as mock_snap_cam:
-        retrieved_image_path = await grab_image(uut, "example", uut.context)
+        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
         assert retrieved_image_path == original_image_path
         assert mock_snap_cam.called
         mock_snap_cam.reset_mock()
-        retrieved_image_path = await grab_image(uut, "example", uut.context)
+        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
         assert retrieved_image_path == original_image_path
         # notification caches image for multiple deliveries
         mock_snap_cam.assert_not_called()

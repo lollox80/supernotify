@@ -36,6 +36,7 @@ async def test_notify_alexa_media_player(uninitialized_unmocked_config: Context)
             Delivery("override", delivery_config["override"], uut),
             notification,
             target=Target(["media_player.hall", "media_player.toilet"]),
+            data={"pause_music": False},
         )
     )
     uninitialized_unmocked_config.hass_api.call_service.assert_called_with(  # type: ignore
@@ -97,7 +98,7 @@ async def test_notify_alexa_media_player_with_data_override(uninitialized_unmock
             Delivery("override", delivery_config["override"], uut),
             notification,
             target=Target(["media_player.hall"]),
-            data={"data": {"type": "tts"}},
+            data={"data": {"type": "tts"}, "pause_music": False},
         )
     )
     uninitialized_unmocked_config.hass_api.call_service.assert_called_with(  # type: ignore
@@ -118,7 +119,7 @@ def test_alexa_media_player_features_and_validate() -> None:
 
     from custom_components.supernotify.model import TransportFeature
 
-    assert uut.supported_features == TransportFeature.MESSAGE
+    assert uut.supported_features == TransportFeature.MESSAGE | TransportFeature.SPOKEN
     assert uut.validate_action("notify.alexa_media") is True
     assert uut.validate_action(None) is False
 

@@ -296,10 +296,10 @@ def select_avail_camera(hass_api: HomeAssistantAPI, cameras: dict[str, Any], cam
     return None
 
 
-async def grab_image(notification: "Notification", delivery_name: str, context: Context) -> Path | None:  # type: ignore  # noqa: F821
+async def grab_image(notification: "Notification", delivery: Delivery, context: Context) -> Path | None:  # type: ignore  # noqa: F821
     snapshot_url = notification.media.get(ATTR_MEDIA_SNAPSHOT_URL)
     camera_entity_id = notification.media.get(ATTR_MEDIA_CAMERA_ENTITY_ID)
-    delivery_config = notification.delivery_data(delivery_name)
+    delivery_config = notification.delivery_data(delivery)
     jpeg_opts = notification.media.get(ATTR_JPEG_OPTS, delivery_config.get(CONF_OPTIONS, {}).get(OPTION_JPEG))
     png_opts = notification.media.get(ATTR_PNG_OPTS, delivery_config.get(CONF_OPTIONS, {}).get(OPTION_PNG))
     reprocess_option = (

@@ -60,9 +60,10 @@ import logging
 import re
 from typing import Any, cast
 
-from homeassistant.components.notify.const import ATTR_DATA, ATTR_TARGET
+from homeassistant.components.notify.const import ATTR_DATA, ATTR_MESSAGE, ATTR_TARGET, ATTR_TITLE
 from homeassistant.const import ATTR_ENTITY_ID
 
+from custom_components.supernotify.common import boolify
 from custom_components.supernotify.const import (
     OPTION_MESSAGE_USAGE,
     OPTION_SIMPLIFY_TEXT,
@@ -84,25 +85,13 @@ from custom_components.supernotify.transport import Transport
 
 RE_VALID_ALEXA = r"media_player\.[A-Za-z0-9_]+"
 
-_FALSY_STRINGS = frozenset({"false", "0", "no", "off", ""})
-
-
-def _to_bool(value: Any, default: bool) -> bool:
-    """Convert a value to bool, correctly handling string 'false'/'true'.
-
-    Python's built-in bool() treats any non-empty string as True, so
-    bool("false") == True.  This helper avoids that pitfall for values
-    that may arrive as YAML strings or Jinja2 template results.
-    """
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() not in _FALSY_STRINGS
-    return bool(value)
-
 
 RE_SSML_TAG = re.compile(r"<[^>]+>")
 PAUSE_CHARS = (", ", ". ", "! ", "? ", ": ", "; ")
+
+# ref: https://github.com/alandtse/alexa_media_player/wiki/Configuration%3A-Notification-Component
+SERVICE_DATA_KEYS = [ATTR_MESSAGE, ATTR_TITLE, ATTR_DATA, ATTR_TARGET]
+SERVICE_DATA_DATA_KEYS = ["type", "method"]
 
 _PAUSE_WEIGHT = 0.35
 _CHAR_WEIGHT = 0.06
@@ -144,7 +133,7 @@ class AlexaMediaPlayerTransport(Transport):
 
     @property
     def supported_features(self) -> TransportFeature:
-        return TransportFeature.MESSAGE
+        return TransportFeature.MESSAGE | TransportFeature.SPOKEN
 
     @property
     def default_config(self) -> TransportConfig:
@@ -165,9 +154,7 @@ class AlexaMediaPlayerTransport(Transport):
         return action is not None
 
     async def _safe_service(self, domain: str, service: str, service_data: dict[str, Any]) -> bool:
-        """Call a HA service via hass_api, catching exceptions so offline
-        devices never block the overall delivery.
-        """
+        """Call a HA service via hass_api, catching exceptions so offline devices never block overall delivery."""
         try:
             await self.hass_api.call_service(domain, service, service_data=service_data)
             return True
@@ -270,23 +257,10 @@ class AlexaMediaPlayerTransport(Transport):
         raw_data: dict[str, Any] = dict(envelope.data) if envelope.data else {}
 
         volume_raw = raw_data.pop("volume", None)
-        # Strip Supernotify-internal keys that have no meaning for notify.alexa_media.
-        # These leak into envelope.data via extra_data (action call pass-through) or
-        # scenario delivery customizations intended for other transports.
-        # See notification.generate_envelopes(): extra_data is merged into every delivery.
-        for _key in (
-            "volume_template",  # scenario Jinja2 template already resolved above
-            "persistent",  # persistent_notification transport key (confirmed in archive)
-            "notification_icon",  # mobile_push transport key
-            "tag",  # mobile_push transport key
-            "ttl",  # mobile_push transport key
-            "group",  # mobile_push transport key
-        ):
-            raw_data.pop(_key, None)
-        restore_volume: bool = _to_bool(raw_data.pop("restore_volume", True), default=True)
-        pause_music: bool = _to_bool(raw_data.pop("pause_music", True), default=True)
+        restore_volume: bool = boolify(raw_data.pop("restore_volume", True), default=True)
+        pause_music: bool = boolify(raw_data.pop("pause_music", True), default=True)
         volume_fallback: float = float(raw_data.pop("volume_fallback", 0.5))
-        wait_for_tts: bool = _to_bool(raw_data.pop("wait_for_tts", False), default=False)
+        wait_for_tts: bool = boolify(raw_data.pop("wait_for_tts", False), default=False)
         tts_char_speed: float = float(raw_data.pop("tts_char_speed", _CHAR_WEIGHT))
 
         # Resolve Jinja2 template if volume is still a raw template string
@@ -325,17 +299,16 @@ class AlexaMediaPlayerTransport(Transport):
                     await self._safe_service("media_player", "media_pause", {ATTR_ENTITY_ID: mp})
 
         # Announce
+        call_type: str = raw_data.get(ATTR_DATA, {}).get("type", "announce")
         action_data: dict[str, Any] = {
             "message": envelope.message,
-            ATTR_DATA: {"type": "announce"},
+            ATTR_DATA: {"type": call_type},
             ATTR_TARGET: media_players,
         }
         if requested_volume is not None and volume_set_failed:
             # Fallback path: if pre-announce volume_set fails for one or more
             # players, pass volume through notify.alexa_media too.
             action_data[ATTR_DATA]["volume"] = requested_volume
-        if raw_data:
-            action_data[ATTR_DATA].update(raw_data)
 
         result = await self.call_action(envelope, action_data=action_data)
 
@@ -346,7 +319,7 @@ class AlexaMediaPlayerTransport(Transport):
         # wait_for_tts additionally blocks even in pure fire-and-forget deliveries,
         # allowing automation sequences to run only after the announcement ends.
         needs_post_announce = needs_restore and bool(states)
-        if needs_post_announce or wait_for_tts:
+        if (needs_post_announce or wait_for_tts) and envelope.message:
             tts_duration = _estimate_tts_duration(envelope.message, tts_char_speed)
             _LOGGER.debug(
                 "SUPERNOTIFY alexa_media_player: waiting %.1f s for TTS (%d chars, %.3f s/ch)",
@@ -356,6 +329,6 @@ class AlexaMediaPlayerTransport(Transport):
             )
             await asyncio.sleep(tts_duration)
             if needs_post_announce:
-                await self._post_announce(states, restore_volume, pause_music)
+                await self._post_announce(states, restore_volume and requested_volume is not None, pause_music)
 
         return result

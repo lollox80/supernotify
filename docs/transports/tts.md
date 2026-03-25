@@ -85,6 +85,11 @@ transports:
 
 Media Player and Android targets can be combined in one call - the `tts` transport will work out which calls to make.
 
+## Voice specific message
+
+Use `spoken_message` in the `data` section of a notification call to provide a different message for a voice
+notification than used for other transports like email or mobile push.
+
 ## Alternatives
 
 For Amazon Echo devices, text-to-speech is also available via the [Alexa Devices](./alexa_devices.md) and

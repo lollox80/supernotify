@@ -55,7 +55,7 @@ class TTSTransport(Transport):
 
     @property
     def supported_features(self) -> TransportFeature:
-        return TransportFeature.MESSAGE
+        return TransportFeature.MESSAGE | TransportFeature.SPOKEN
 
     def validate_action(self, action: str | None) -> bool:
         """Allow default action to be overridden, such as tts.say or tts.cloud_speak"""

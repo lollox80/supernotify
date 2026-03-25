@@ -2,7 +2,7 @@
 
 Covers:
 - _estimate_tts_duration (SSML stripping, pause chars, char_weight param)
-- _to_bool helper (string booleans, frozenset falsy values)
+- boolify helper (string booleans, frozenset falsy values)
 - _snapshot_states (normal, playing, volume_level=None, missing entity)
 - _pre_announce (media_stop ordering, pause/stop logic, idle no-op)
 - _post_announce (restore, skip restore, resume music, no resume when idle,
@@ -25,7 +25,6 @@ from custom_components.supernotify.transports.alexa_media_player import (
     PAUSE_CHARS,
     AlexaMediaPlayerTransport,
     _estimate_tts_duration,
-    _to_bool,
 )
 
 
@@ -57,51 +56,13 @@ def _make_envelope(message, data=None, entity_ids=None, condition_variables=None
     envelope.message = message
     envelope.data = data if data is not None else {}
     envelope.target = MagicMock()
-    envelope.target.entity_ids = entity_ids or ["media_player.ufficio"]
+    envelope.target.entity_ids = ["media_player.ufficio"] if entity_ids is None else entity_ids
     envelope.condition_variables = condition_variables
     return envelope
 
 
 def _service_names(transport):
     return [c.args[1] for c in transport.hass_api.call_service.call_args_list]
-
-
-class TestToBool:
-    def test_true_bool(self):
-        assert _to_bool(True, default=False) is True
-
-    def test_false_bool(self):
-        assert _to_bool(False, default=True) is False
-
-    def test_string_false_lowercase(self):
-        assert _to_bool("false", default=True) is False
-
-    def test_string_False_capitalized(self):
-        assert _to_bool("False", default=True) is False
-
-    def test_string_zero(self):
-        assert _to_bool("0", default=True) is False
-
-    def test_string_no(self):
-        assert _to_bool("no", default=True) is False
-
-    def test_string_off(self):
-        assert _to_bool("off", default=True) is False
-
-    def test_string_true(self):
-        assert _to_bool("true", default=False) is True
-
-    def test_string_yes(self):
-        assert _to_bool("yes", default=False) is True
-
-    def test_integer_one(self):
-        assert _to_bool(1, default=False) is True
-
-    def test_integer_zero(self):
-        assert _to_bool(0, default=True) is False
-
-    def test_empty_string(self):
-        assert _to_bool("", default=True) is False
 
 
 class TestEstimateTtsDuration:
@@ -202,7 +163,7 @@ class TestPreAnnounce:
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
         assert len(vol_calls) == 2
         for vc in vol_calls:
-            assert vc.args[2]["volume_level"] == pytest.approx(0.8)
+            assert vc.kwargs["service_data"]["volume_level"] == pytest.approx(0.8)
 
 
 class TestPostAnnounce:
@@ -221,7 +182,7 @@ class TestPostAnnounce:
         await t._post_announce(states, restore_volume=True, pause_music=True)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
         assert len(vol_calls) == 1
-        assert vol_calls[0].args[2]["volume_level"] == pytest.approx(0.35)
+        assert vol_calls[0].kwargs["service_data"]["volume_level"] == pytest.approx(0.35)
 
     @pytest.mark.asyncio
     async def test_skips_restore_when_disabled(self):
@@ -263,7 +224,7 @@ class TestDeliver:
 
     @pytest.mark.asyncio
     async def test_no_volume_no_volume_set(self):
-        t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.5}})
+        t = _make_transport({"media_player.ufficio": {"state": "idle"}})
         envelope = _make_envelope("Test", data={})
         result = await t.deliver(envelope)
         assert result is True
@@ -277,7 +238,7 @@ class TestDeliver:
             result = await t.deliver(envelope)
         assert result is True
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
-        levels = [c.args[2]["volume_level"] for c in vol_calls]
+        levels = [c.kwargs["service_data"]["volume_level"] for c in vol_calls]
         assert pytest.approx(0.9) in levels
         assert pytest.approx(0.4) in levels
 
@@ -326,7 +287,7 @@ class TestDeliver:
         with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
-        levels = [c.args[2]["volume_level"] for c in vol_calls]
+        levels = [c.kwargs["service_data"]["volume_level"] for c in vol_calls]
         assert pytest.approx(0.55) in levels
 
     @pytest.mark.asyncio
@@ -340,7 +301,7 @@ class TestDeliver:
 
     @pytest.mark.asyncio
     async def test_music_paused_and_resumed(self):
-        t = _make_transport({"media_player.sala": {"state": "playing", "volume_level": 0.5}})
+        t = _make_transport({"media_player.sala": {"state": "playing", "volume_level": 0.5, "pause_music": True}})
         envelope = _make_envelope("Test", data={"volume": 0.8}, entity_ids=["media_player.sala"])
         with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
@@ -359,7 +320,7 @@ class TestDeliver:
         with patch("custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock):
             await t.deliver(envelope)
         vol_calls = [c for c in t.hass_api.call_service.call_args_list if c.args[1] == "volume_set"]
-        levels = [c.args[2]["volume_level"] for c in vol_calls]
+        levels = [c.kwargs["service_data"]["volume_level"] for c in vol_calls]
         assert pytest.approx(0.65) in levels
 
     @pytest.mark.asyncio
@@ -385,8 +346,8 @@ class TestDeliver:
 
     @pytest.mark.asyncio
     async def test_wait_for_tts_false_no_sleep_without_volume(self):
-        t = _make_transport({"media_player.ufficio": {"state": "idle", "volume_level": 0.5}})
-        envelope = _make_envelope("Ciao", data={})
+        t = _make_transport({"media_player.ufficio": {"state": "idle"}})
+        envelope = _make_envelope("Ciao", data={"pause_music": False})
         with patch(
             "custom_components.supernotify.transports.alexa_media_player.asyncio.sleep", new_callable=AsyncMock
         ) as mock_sleep:

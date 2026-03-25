@@ -26,6 +26,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+_FALSY_STRINGS = frozenset({"false", "0", "no", "off", ""})
+
 
 def safe_get(probably_a_dict: dict[Any, Any] | None, key: Any, default: Any = None) -> Any:
     probably_a_dict = probably_a_dict or {}
@@ -155,3 +157,19 @@ class DupeChecker:
             _LOGGER.debug("SUPERNOTIFY Detected dupe: %s", dupe_candidate.id)
         self.cache[hashed, ranked_priority] = dupe_candidate.id
         return dupe
+
+
+def boolify(value: Any, default: bool) -> bool:
+    """Convert a value to bool, correctly handling string 'false'/'true'.
+
+    Python's built-in bool() treats any non-empty string as True, so
+    bool("false") == True.  This helper avoids that pitfall for values
+    that may arrive as YAML strings or Jinja2 template results.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() not in _FALSY_STRINGS
+    return bool(value)

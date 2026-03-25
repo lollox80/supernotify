@@ -15,6 +15,11 @@ Announce a message on an Alexa Echo device using the [`alexa_media_player`](http
 
 The `message_usage` option can be set to `combine_title` or `use_title` to override the default behaviour of speaking the `standard`.
 
+## Voice specific message
+
+Use `spoken_message` in the `data` section of a notification call to provide a different message for a voice
+notification than used for other transports like email or mobile push.
+
 ## References
 
 ### Home Assistant Core

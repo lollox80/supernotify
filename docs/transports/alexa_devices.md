@@ -27,6 +27,11 @@ When speaking, [SSML](https://developer.amazon.com/en-US/docs/alexa/custom-skill
 - ```<voice name='Geraint'>hello I'm from Abergavenny</voice>```
 - ```<say-as interpret-as='date'>????0922</say-as>``` ( will read as 'September 22nd' )
 
+## Voice specific message
+
+Use `spoken_message` in the `data` section of a notification call to provide a different message for a voice
+notification than used for other transports like email or mobile push.
+
 ## References
 
 ### Home Assistant Core

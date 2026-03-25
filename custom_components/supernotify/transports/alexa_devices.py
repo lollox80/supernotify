@@ -42,7 +42,7 @@ class AlexaDevicesTransport(Transport):
 
     @property
     def supported_features(self) -> TransportFeature:
-        return TransportFeature.MESSAGE
+        return TransportFeature.MESSAGE | TransportFeature.SPOKEN
 
     @property
     def default_config(self) -> TransportConfig:

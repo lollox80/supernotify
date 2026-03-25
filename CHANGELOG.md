@@ -1,5 +1,15 @@
 # Public releases
 
+## 1.12.0
+### Alexa Media Player
+Includes major fixes and improvements contributed by [@lollox80](https://github.com/lollox80)
+- Alexa Media Player volume control now works, along with ability to pause and restart any music previously playing
+- `spoken_message` can now be set in `data` as an alternative to `message` for any of the voice options (TTS, Alexa Media Player, Alexa Devices)
+### Delivery Overrides
+- Overrides now respect `message` or `title` in the `data` section for channel specific messages
+  - New [recipe](docs/recipes/channel_specific_messages.md) to illustrate it
+- Overrides now match against the name of a transport if there's no matching delivery
+
 ## 1.11.1
 Includes fixes and improvements contributed by [@lollox80](https://github.com/lollox80)
 -  Icon fixes

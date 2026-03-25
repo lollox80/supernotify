@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from anyio import Path
 from homeassistant.components.notify.const import ATTR_MESSAGE, ATTR_TITLE
+from homeassistant.helpers.template import is_template_string
 from jinja2 import TemplateError
 
 from .common import DupeCheckable
@@ -15,6 +16,7 @@ from .const import (
     ATTR_MEDIA,
     ATTR_MESSAGE_HTML,
     ATTR_PRIORITY,
+    ATTR_SPOKEN_MESSAGE,
     ATTR_TIMESTAMP,
     OPTION_MESSAGE_USAGE,
     OPTION_SIMPLIFY_TEXT,
@@ -71,10 +73,10 @@ class Envelope(DupeCheckable):
         self.data: dict[str, Any] = {}
         self.actions: list[dict[str, Any]] = []
         if notification:
-            delivery_config_data: dict[str, Any] = notification.delivery_data(delivery.name)
+            delivery_config_data: dict[str, Any] = notification.delivery_data(delivery)
             self._enabled_scenarios: dict[str, Scenario] = notification.enabled_scenarios
-            self._message = notification.message
-            self._title = notification._title
+            self._message = delivery_config_data.pop(ATTR_MESSAGE, notification.message)
+            self._title = delivery_config_data.pop(ATTR_TITLE, notification._title)
             self.id = f"{notification.id}_{self.delivery_name}"
         else:
             delivery_config_data = {}
@@ -115,7 +117,7 @@ class Envelope(DupeCheckable):
         """Grab an image from a camera, snapshot URL, MQTT Image etc"""
         image_path: Path | None = None
         if self._notification:
-            image_path = await grab_image(self._notification, self.delivery_name, self._notification.context)
+            image_path = await grab_image(self._notification, self.delivery, self._notification.context)
         return image_path
 
     def core_action_data(self, force_message: bool = True) -> dict[str, Any]:
@@ -201,21 +203,6 @@ class Envelope(DupeCheckable):
             return None
         return str(title)
 
-    def _resolve_channel_message(self) -> str | None:
-        """Resolve channel-specific message override from extra_data."""
-        extra = self._notification.extra_data if self._notification and hasattr(self._notification, "extra_data") else {}
-        if not extra:
-            return None
-        channel_messages = extra.get("channel_message", {})
-        transport_name = self.delivery.transport.name if self.delivery and self.delivery.transport else None
-        if self.delivery_name in channel_messages:
-            return str(channel_messages[self.delivery_name])
-        if transport_name and transport_name in channel_messages:
-            return str(channel_messages[transport_name])
-        if "spoken_message" in extra and transport_name in ("alexa_media_player", "alexa_devices", "tts"):
-            return str(extra["spoken_message"])
-        return None
-
     def _compute_message(self) -> str | None:
         # message and title reverse the usual defaulting, delivery config overrides runtime call
 
@@ -223,18 +210,24 @@ class Envelope(DupeCheckable):
         if self.delivery is None:
             msg = self._message
         else:
+            # self._message could be top level `message` or `message` set in delivery override
             msg = self.delivery.message if self.delivery.message is not None else self._message
-            if msg and self.context and "{{" in str(msg):
+            if (
+                self._notification
+                and self._notification.extra_data
+                and ATTR_SPOKEN_MESSAGE in self._notification.extra_data
+                and self.delivery.transport.supported_features & TransportFeature.SPOKEN
+            ):
+                msg = str(self._notification.extra_data[ATTR_SPOKEN_MESSAGE])
+
+            if msg and self.context and is_template_string(msg):
                 try:
                     context_vars = cast("dict[str,Any]", self.condition_variables.as_dict()) if self.condition_variables else {}
                     template = self.context.hass_api.template(msg)
                     msg = template.async_render(variables=context_vars)
                 except Exception as e:
                     _LOGGER.warning("SUPERNOTIFY Rendering delivery message template for %s failed: %s", self.delivery_name, e)
-            if self.delivery.message is None:
-                channel_msg = self._resolve_channel_message()
-                if channel_msg is not None:
-                    msg = channel_msg
+
             message_usage: str = str(self.delivery.option_str(OPTION_MESSAGE_USAGE))
             if message_usage.upper() == MessageOnlyPolicy.USE_TITLE:
                 title = self._compute_title(ignore_usage=True)

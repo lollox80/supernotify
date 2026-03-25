@@ -73,6 +73,7 @@ class TransportFeature(IntFlag):
     ACTIONS = 16
     TEMPLATE_FILE = 32
     SNAPSHOT_IMAGE = 64
+    SPOKEN = 128
 
 
 class Target:

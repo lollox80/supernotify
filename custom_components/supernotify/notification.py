@@ -15,7 +15,6 @@ from .common import ensure_list, nullable_ensure_list, sanitize
 from .const import (
     ATTR_ACTION_GROUPS,
     ATTR_ACTIONS,
-    ATTR_CHANNEL_MESSAGE,
     ATTR_DEBUG,
     ATTR_DELIVERY,
     ATTR_DELIVERY_SELECTION,
@@ -30,6 +29,7 @@ from .const import (
     ATTR_SCENARIOS_APPLY,
     ATTR_SCENARIOS_CONSTRAIN,
     ATTR_SCENARIOS_REQUIRE,
+    ATTR_SPOKEN_MESSAGE,
     DELIVERY_SELECTION_EXPLICIT,
     DELIVERY_SELECTION_FIXED,
     DELIVERY_SELECTION_IMPLICIT,
@@ -594,8 +594,12 @@ class Notification(ArchivableObject):
         """ArchiveableObject implementation"""
         return f"{self.created.isoformat()[:16].replace(':', '-')}_{self.id}"
 
-    def delivery_data(self, delivery_name: str) -> dict[str, Any]:
-        delivery_override: DeliveryCustomization | None = self.delivery_overrides.get(delivery_name)
+    def delivery_data(self, delivery: Delivery) -> dict[str, Any]:
+        if delivery is None:
+            return {}
+        delivery_override: DeliveryCustomization | None = self.delivery_overrides.get(delivery.name)
+        if delivery_override is None:
+            delivery_override = self.delivery_overrides.get(delivery.transport.name)
         return delivery_override.data if delivery_override and delivery_override.data else {}
 
     @property
@@ -701,6 +705,8 @@ class Notification(ArchivableObject):
         # If the action call explicitly specified a target for this delivery, it takes
         # precedence over all resolved/merged targets above.
         delivery_override: DeliveryCustomization | None = self.delivery_overrides.get(delivery.name)
+        if delivery_override is None:
+            delivery_override = self.delivery_overrides.get(delivery.transport.name)
         if delivery_override and delivery_override.target and delivery_override.target.has_targets():
             computed_target = delivery.select_targets(delivery_override.target)
             self.debug_trace.record_target(delivery.name, "600_delivery_override_target", computed_target)
@@ -776,9 +782,7 @@ class Notification(ArchivableObject):
                 envelope_data = {}
                 envelope_data.update(delivery.data)
                 envelope_data.update({
-                    k: v
-                    for k, v in self.extra_data.items()
-                    if k not in (ATTR_FORCE_RESEND, ATTR_CHANNEL_MESSAGE, "spoken_message")
+                    k: v for k, v in self.extra_data.items() if k not in (ATTR_FORCE_RESEND, ATTR_SPOKEN_MESSAGE)
                 })  # action call data
                 if target.target_data:
                     envelope_data.update(target.target_data)

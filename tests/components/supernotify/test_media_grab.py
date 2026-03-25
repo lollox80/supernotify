@@ -46,6 +46,12 @@ from .hass_setup_lib import TestingContext
 LOSSY_FORMATS = ["jpeg"]
 UNLOSSY_FORMATS = ["png", "gif"]
 
+DELIVERIES = """
+mail:
+    transport: email
+    action: notify.smtp
+"""
+
 
 @pytest.mark.enable_socket
 async def test_snapshot_url_with_abs_path(
@@ -174,18 +180,18 @@ async def test_snap_image_entity(
 
 @pytest.mark.enable_socket
 async def test_grab_image(hass: HomeAssistant, local_server, sample_image) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
 
     snapshot_url = local_server.url_for("/snapshot_image")
     local_server.expect_request("/snapshot_image").respond_with_data(sample_image.contents, content_type=sample_image.mime_type)  # type: ignore
 
     notification = Notification(ctx, "Test Me 123")
-    result: anyio.Path | None = await grab_image(notification, "mail", ctx)
+    result: anyio.Path | None = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result is None
 
     notification = Notification(ctx, "Test Me 123", action_data={"media": {"snapshot_url": snapshot_url}})
-    result = await grab_image(notification, "mail", ctx)
+    result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result is not None
     retrieved_image = Image.open(str(result))
     assert retrieved_image is not None  # images tested by lower funcs
@@ -517,57 +523,57 @@ async def test_write_image_from_bitmap_exception(mock_hass_api: HomeAssistantAPI
 
 
 async def test_grab_image_no_media_path(hass: HomeAssistant) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     ctx.media_storage.media_path = None
     notification = Notification(ctx, "Test", action_data={"media": {"snapshot_url": "http://test"}})
-    assert await grab_image(notification, "mail", ctx) is None
+    assert await grab_image(notification, ctx.delivery("mail"), ctx) is None
 
 
 async def test_grab_image_invalid_reprocess(hass: HomeAssistant) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     notification = Notification(ctx, "Test", action_data={"media": {"snapshot_url": "http://x"}})
     notification.media[MEDIA_OPTION_REPROCESS] = "bogus"  # inject directly — not in schema
     with patch("custom_components.supernotify.media_grab.snapshot_from_url", return_value=anyio.Path("/tmp/img.jpg")):  # noqa: S108
-        result = await grab_image(notification, "mail", ctx)
+        result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result is not None
 
 
 async def test_grab_image_with_existing_snapshot_path(hass: HomeAssistant, tmp_path: Path) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     existing = tmp_path / "shot.jpg"
     existing.touch()
     notification = Notification(ctx, "Test", action_data={"media": {"snapshot_url": "http://cam/snap"}})
     notification.media[ATTR_MEDIA_SNAPSHOT_PATH] = str(existing)  # inject directly — not in schema
-    result = await grab_image(notification, "mail", ctx)
+    result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert str(result) == str(existing)
 
 
 async def test_grab_image_with_image_entity(hass: HomeAssistant, tmp_path: Path) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     expected = anyio.Path(tmp_path / "result.jpg")
     with patch("custom_components.supernotify.media_grab.snap_image_entity", return_value=expected):
         notification = Notification(ctx, "Test", action_data={"media": {"camera_entity_id": "image.front_door"}})
-        result = await grab_image(notification, "mail", ctx)
+        result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result == expected
 
 
 async def test_grab_image_with_camera(hass: HomeAssistant, tmp_path: Path) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     expected = anyio.Path(tmp_path / "result.jpg")
     with patch("custom_components.supernotify.media_grab.select_avail_camera", return_value="camera.front"):
         with patch("custom_components.supernotify.media_grab.snap_camera", return_value=expected):
             notification = Notification(ctx, "Test", action_data={"media": {"camera_entity_id": "camera.front"}})
-            result = await grab_image(notification, "mail", ctx)
+            result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result == expected
 
 
 async def test_grab_image_with_camera_ptz(hass: HomeAssistant, tmp_path: Path) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     ctx.cameras = {"camera.front": {CONF_CAMERA: "camera.front", CONF_PTZ_PRESET_DEFAULT: "Home"}}
     expected = anyio.Path(tmp_path / "result.jpg")
@@ -581,17 +587,17 @@ async def test_grab_image_with_camera_ptz(hass: HomeAssistant, tmp_path: Path) -
                     "Test",
                     action_data={"media": {"camera_entity_id": "camera.front", "camera_ptz_preset": "Doorway"}},
                 )
-                result = await grab_image(notification, "mail", ctx)
+                result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result == expected
     assert mock_ptz.call_count == 2  # move to preset before snap, return to default after
 
 
 async def test_grab_image_camera_unavailable(hass: HomeAssistant) -> None:
-    ctx = TestingContext(homeassistant=hass)
+    ctx = TestingContext(homeassistant=hass, deliveries=DELIVERIES)
     await ctx.test_initialize()
     with patch("custom_components.supernotify.media_grab.select_avail_camera", return_value=None):
         notification = Notification(ctx, "Test", action_data={"media": {"camera_entity_id": "camera.unavailable"}})
-        result = await grab_image(notification, "mail", ctx)
+        result = await grab_image(notification, ctx.delivery("mail"), ctx)
     assert result is None
 
 

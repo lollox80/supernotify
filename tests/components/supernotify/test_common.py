@@ -1,6 +1,14 @@
 from unittest.mock import Mock
 
-from custom_components.supernotify.common import CallRecord, DupeChecker, ensure_dict, ensure_list, safe_extend, safe_get
+from custom_components.supernotify.common import (
+    CallRecord,
+    DupeChecker,
+    boolify,
+    ensure_dict,
+    ensure_list,
+    safe_extend,
+    safe_get,
+)
 from custom_components.supernotify.const import ATTR_DUPE_POLICY_MT, ATTR_DUPE_POLICY_NONE, CONF_DUPE_POLICY
 from custom_components.supernotify.envelope import Envelope
 from custom_components.supernotify.notification import Notification
@@ -100,3 +108,47 @@ def test_dupe_policy_none_never_suppresses() -> None:
     assert uut.check(e1) is False
     e2 = Envelope(delivery, Notification(Mock(), "message here", "title here"))
     assert uut.check(e2) is False
+
+
+class TestBoolify:
+    def test_true_bool(self):
+        assert boolify(True, default=False) is True
+
+    def test_false_bool(self):
+        assert boolify(False, default=True) is False
+
+    def test_string_false_lowercase(self):
+        assert boolify("false", default=True) is False
+
+    def test_string_false_capitalized(self):
+        assert boolify("False", default=True) is False
+
+    def test_string_zero(self):
+        assert boolify("0", default=True) is False
+
+    def test_string_no(self):
+        assert boolify("no", default=True) is False
+
+    def test_string_off(self):
+        assert boolify("off", default=True) is False
+
+    def test_string_true(self):
+        assert boolify("true", default=False) is True
+
+    def test_string_yes(self):
+        assert boolify("yes", default=False) is True
+
+    def test_integer_one(self):
+        assert boolify(1, default=False) is True
+
+    def test_integer_zero(self):
+        assert boolify(0, default=True) is False
+
+    def test_empty_string(self):
+        assert boolify("", default=True) is False
+
+    def test_none_true(self):
+        assert boolify(None, default=True)
+
+    def test_none_false(self):
+        assert not boolify(None, default=False)
