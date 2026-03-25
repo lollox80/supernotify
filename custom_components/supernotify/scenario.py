@@ -225,7 +225,8 @@ class Scenario:
                     _LOGGER.warning(f"SUPERNOTIFY Scenario {self.name} condition empty result")
             except Exception as e:
                 _LOGGER.error(
-                    f"SUPERNOTIFY Scenario {self.name} condition eval failed: %s, vars: %s",
+                    "SUPERNOTIFY Scenario %s condition eval failed: %s, vars: %s",
+                    self.name,
                     e,
                     condition_variables.as_dict() if condition_variables else {},
                 )
