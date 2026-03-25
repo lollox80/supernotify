@@ -185,60 +185,56 @@ class Envelope(DupeCheckable):
         # message and title reverse the usual defaulting, delivery config overrides runtime call
 
         title: str | None = None
-        if self.delivery is None:
-            title = self._title
+        message_usage = self.delivery.option_str(OPTION_MESSAGE_USAGE)
+        if not ignore_usage and message_usage.upper() in (MessageOnlyPolicy.USE_TITLE, MessageOnlyPolicy.COMBINE_TITLE):
+            title = None
         else:
-            message_usage = self.delivery.option_str(OPTION_MESSAGE_USAGE)
-            if not ignore_usage and message_usage.upper() in (MessageOnlyPolicy.USE_TITLE, MessageOnlyPolicy.COMBINE_TITLE):
-                title = None
-            else:
-                title = self.delivery.title if self.delivery.title is not None else self._title
-                if (
-                    self.delivery.option_bool(OPTION_SIMPLIFY_TEXT) is True
-                    or self.delivery.option_bool(OPTION_STRIP_URLS) is True
-                ):
-                    title = self.delivery.transport.simplify(title, strip_urls=self.delivery.option_bool(OPTION_STRIP_URLS))
+            title = self.delivery.title if self.delivery.title is not None else self._title
+            if self.delivery.option_bool(OPTION_SIMPLIFY_TEXT) is True or self.delivery.option_bool(OPTION_STRIP_URLS) is True:
+                title = self.delivery.transport.simplify(title, strip_urls=self.delivery.option_bool(OPTION_STRIP_URLS))
         title = self._render_scenario_templates(title, "title_template", "notification_title")
         if title is None:
             return None
         return str(title)
 
+    def _spoken_message(self) -> str | None:
+        """Alternative message only for spoken voice transports"""
+        if (
+            self._notification
+            and self._notification.extra_data
+            and ATTR_SPOKEN_MESSAGE in self._notification.extra_data
+            and self.delivery.transport.supported_features & TransportFeature.SPOKEN
+        ):
+            return str(self._notification.extra_data[ATTR_SPOKEN_MESSAGE])
+        return None
+
     def _compute_message(self) -> str | None:
         # message and title reverse the usual defaulting, delivery config overrides runtime call
 
-        msg: str | None = None
-        if self.delivery is None:
-            msg = self._message
-        else:
-            # self._message could be top level `message` or `message` set in delivery override
-            msg = self.delivery.message if self.delivery.message is not None else self._message
-            if (
-                self._notification
-                and self._notification.extra_data
-                and ATTR_SPOKEN_MESSAGE in self._notification.extra_data
-                and self.delivery.transport.supported_features & TransportFeature.SPOKEN
-            ):
-                msg = str(self._notification.extra_data[ATTR_SPOKEN_MESSAGE])
+        # self._message could be top level `message` or `message` set in delivery override
+        msg: str | None = self.delivery.message if self.delivery.message is not None else self._message
+        msg = self._spoken_message() or msg
 
-            if msg and self.context and is_template_string(msg):
-                try:
-                    context_vars = cast("dict[str,Any]", self.condition_variables.as_dict()) if self.condition_variables else {}
-                    template = self.context.hass_api.template(msg)
-                    msg = template.async_render(variables=context_vars)
-                except Exception as e:
-                    _LOGGER.warning("SUPERNOTIFY Rendering delivery message template for %s failed: %s", self.delivery_name, e)
+        if msg and self.context and is_template_string(msg):
+            try:
+                context_vars = cast("dict[str,Any]", self.condition_variables.as_dict()) if self.condition_variables else {}
+                template = self.context.hass_api.template(msg)
+                msg = template.async_render(variables=context_vars)
+            except Exception as e:
+                _LOGGER.warning("SUPERNOTIFY Rendering delivery message template for %s failed: %s", self.delivery_name, e)
 
-            message_usage: str = str(self.delivery.option_str(OPTION_MESSAGE_USAGE))
-            if message_usage.upper() == MessageOnlyPolicy.USE_TITLE:
-                title = self._compute_title(ignore_usage=True)
-                if title:
-                    msg = title
-            elif message_usage.upper() == MessageOnlyPolicy.COMBINE_TITLE:
-                title = self._compute_title(ignore_usage=True)
-                if title:
-                    msg = f"{title} {msg}"
-            if self.delivery.option_bool(OPTION_SIMPLIFY_TEXT) is True or self.delivery.option_bool(OPTION_STRIP_URLS) is True:
-                msg = self.delivery.transport.simplify(msg, strip_urls=self.delivery.option_bool(OPTION_STRIP_URLS))
+        message_usage: str = str(self.delivery.option_str(OPTION_MESSAGE_USAGE))
+        if message_usage.upper() == MessageOnlyPolicy.USE_TITLE:
+            title = self._compute_title(ignore_usage=True)
+            if title:
+                msg = title
+        elif message_usage.upper() == MessageOnlyPolicy.COMBINE_TITLE:
+            title = self._compute_title(ignore_usage=True)
+            if title:
+                msg = f"{title} {msg}"
+
+        if self.delivery.option_bool(OPTION_SIMPLIFY_TEXT) is True or self.delivery.option_bool(OPTION_STRIP_URLS) is True:
+            msg = self.delivery.transport.simplify(msg, strip_urls=self.delivery.option_bool(OPTION_STRIP_URLS))
 
         msg = self._render_scenario_templates(msg, "message_template", "notification_message")
         if msg is None:  # keep mypy happy
@@ -282,7 +278,8 @@ class Envelope(DupeCheckable):
         def alphaize(v: str | None) -> str | None:
             return v.translate(HASH_PREP_TRANSLATION_TABLE) if v else v
 
-        return hash((alphaize(self._message), alphaize(self.delivery.name), self.target.hash_resolved(), alphaize(self._title)))
+        message: str | None = self._spoken_message() or self._message
+        return hash((alphaize(message), alphaize(self.delivery.name), self.target.hash_resolved(), alphaize(self._title)))
 
     def _resolve_data_templates(self, data: dict[str, Any]) -> dict[str, Any]:
         """Resolve Jinja2 templates in data dict for archive readability.

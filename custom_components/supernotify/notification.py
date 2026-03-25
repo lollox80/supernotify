@@ -71,6 +71,9 @@ KEY_SUPPRESSED = "suppressed"
 KEY_FAILED = "failed"
 KEY_SKIPPED = "skipped"
 
+# supernotify specific data items not to be passed to transports in data
+INTERNAL_DATA_KEYS = (ATTR_FORCE_RESEND, ATTR_SPOKEN_MESSAGE)
+
 type t_delivery_name = str
 type t_outcome = str
 
@@ -791,7 +794,7 @@ class Notification(ArchivableObject):
                 envelope_data = {}
                 envelope_data.update(delivery.data)
                 envelope_data.update({
-                    k: v for k, v in self.extra_data.items() if k not in (ATTR_FORCE_RESEND, ATTR_SPOKEN_MESSAGE)
+                    k: v for k, v in self.extra_data.items() if k not in INTERNAL_DATA_KEYS
                 })  # action call data
                 if target.target_data:
                     envelope_data.update(target.target_data)
