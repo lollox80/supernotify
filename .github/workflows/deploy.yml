@@ -94,17 +94,17 @@ jobs:
           TAG="${{ github.event.release.tag_name }}"
           if [[ "${{ github.event.release.prerelease }}" = "true" ]]; then
             echo "Deploying prerelease version: $TAG"
-            uv run mike deploy --push --update-aliases "$TAG" beta
+            uv run mike deploy --update-aliases "$TAG" beta
           else
             echo "Deploying stable release: $TAG"
-            uv run mike deploy --push --ignore-remote-status --update-aliases "$TAG" latest
-            git fetch origin gh-pages
-            uv run mike set-default --push latest
+            uv run mike deploy --update-aliases "$TAG" latest
+            uv run mike set-default latest
           fi
         else
           echo "Deploying development docs"
-          uv run mike deploy --push --update-aliases dev
+          uv run mike deploy --update-aliases dev
         fi
+        git push origin gh-pages --force-with-lease
 
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
