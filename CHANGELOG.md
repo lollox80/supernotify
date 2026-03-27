@@ -10,7 +10,7 @@ Includes major fixes and improvements contributed by [@lollox80](https://github.
 - `spoken_message` can now be set in `data` as an alternative to `message` for any of the voice options (TTS, Alexa Media Player, Alexa Devices)
 ### Delivery Overrides
 - Overrides now respect `message` or `title` in the `data` section for channel specific messages
-  - New [recipe](docs/recipes/channel_specific_messages.md) to illustrate it
+  - New [recipe](recipes/channel_specific_messages.md) to illustrate it
 - Overrides now match against the name of a transport if there's no matching delivery
 - Delivery overrides that have indirect targets like `person` now correctly resolved to email / sms / slack / mobile etc
 - Explicitly enabled deliveries in action call not overridden by scenarios
