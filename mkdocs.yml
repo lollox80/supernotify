@@ -37,40 +37,6 @@ theme:
 extra:
   version:
     provider: mike
-  alternate:
-    - name: English
-      link: https://supernotify.rhizomatics.org.uk/
-      lang: en
-    - name: Nederlands
-      link: https://supernotify.rhizomatics.org.uk/nl/
-      lang: nl
-    - name: Deutsch
-      link: https://supernotify.rhizomatics.org.uk/de/
-      lang: de
-    - name: Español
-      link: https://supernotify.rhizomatics.org.uk/es/
-      lang: es
-    - name: Français
-      link: https://supernotify.rhizomatics.org.uk/fr/
-      lang: fr
-    - name: हिंदी
-      link: https://supernotify.rhizomatics.org.uk/hi/
-      lang: hi
-    - name: Italiano
-      link: https://supernotify.rhizomatics.org.uk/it/
-      lang: it
-    - name: 日本語
-      link: https://supernotify.rhizomatics.org.uk/ja/
-      lang: ja
-    - name: Polski
-      link: https://supernotify.rhizomatics.org.uk/pl/
-      lang: pl
-    - name: Português
-      link: https://supernotify.rhizomatics.org.uk/pt/
-      lang: pt
-    - name: 中文（简体）
-      link: https://supernotify.rhizomatics.org.uk/zh-Hans/
-      lang: zh
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/rhizomatics
@@ -153,6 +119,18 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+
+not_in_nav: |
+  de/
+  es/
+  fr/
+  hi/
+  it/
+  ja/
+  nl/
+  pl/
+  pt/
+  zh-Hans/
 
 validation:
   omitted_files: warn
