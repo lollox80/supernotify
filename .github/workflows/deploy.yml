@@ -98,6 +98,7 @@ jobs:
           else
             echo "Deploying stable release: $TAG"
             uv run mike deploy --push --ignore-remote-status --update-aliases "$TAG" latest
+            git fetch origin gh-pages
             uv run mike set-default --push latest
           fi
         else
