@@ -39,37 +39,37 @@ extra:
     provider: mike
   alternate:
     - name: English
-      link: ./
+      link: /
       lang: en
     - name: Nederlands
-      link: ./nl/
+      link: /nl/
       lang: nl
     - name: Deutsch
-      link: ./de/
+      link: /de/
       lang: de
     - name: Español
-      link: ./es/
+      link: /es/
       lang: es
     - name: Français
-      link: ./fr/
+      link: /fr/
       lang: fr
     - name: हिंदी
-      link: ./hi/
+      link: /hi/
       lang: hi
     - name: Italiano
-      link: ./it/
+      link: /it/
       lang: it
     - name: 日本語
-      link: ./ja/
+      link: /ja/
       lang: ja
     - name: Polski
-      link: ./pl/
+      link: /pl/
       lang: pl
     - name: Português
-      link: ./pt/
+      link: /pt/
       lang: pt
     - name: 中文（简体）
-      link: ./zh-Hans/
+      link: /zh-Hans/
       lang: zh
   social:
     - icon: fontawesome/brands/github
