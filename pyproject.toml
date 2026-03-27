@@ -247,6 +247,7 @@ norecursedirs = [".git", "templates"]
 addopts = [
     "-n 4",
     "--timeout=30",
+    "-cov=custom_components/supernotify",
     "--cov-report=xml:cov.xml",
     "--cov-report=html",
     "--cov-report=term-missing",
