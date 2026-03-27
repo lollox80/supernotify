@@ -39,37 +39,37 @@ extra:
     provider: mike
   alternate:
     - name: English
-      link: /
+      link: https://supernotify.rhizomatics.org.uk/
       lang: en
     - name: Nederlands
-      link: /nl/
+      link: https://supernotify.rhizomatics.org.uk/nl/
       lang: nl
     - name: Deutsch
-      link: /de/
+      link: https://supernotify.rhizomatics.org.uk/de/
       lang: de
     - name: Español
-      link: /es/
+      link: https://supernotify.rhizomatics.org.uk/es/
       lang: es
     - name: Français
-      link: /fr/
+      link: https://supernotify.rhizomatics.org.uk/fr/
       lang: fr
     - name: हिंदी
-      link: /hi/
+      link: https://supernotify.rhizomatics.org.uk/hi/
       lang: hi
     - name: Italiano
-      link: /it/
+      link: https://supernotify.rhizomatics.org.uk/it/
       lang: it
     - name: 日本語
-      link: /ja/
+      link: https://supernotify.rhizomatics.org.uk/ja/
       lang: ja
     - name: Polski
-      link: /pl/
+      link: https://supernotify.rhizomatics.org.uk/pl/
       lang: pl
     - name: Português
-      link: /pt/
+      link: https://supernotify.rhizomatics.org.uk/pt/
       lang: pt
     - name: 中文（简体）
-      link: /zh-Hans/
+      link: https://supernotify.rhizomatics.org.uk/zh-Hans/
       lang: zh
   social:
     - icon: fontawesome/brands/github
