@@ -3116,6 +3116,7 @@ dependencies = [
     { name = "cachetools" },
     { name = "homeassistant" },
     { name = "pyopenssl" },
+    { name = "requests" },
 ]
 
 [package.dev-dependencies]
@@ -3172,6 +3173,7 @@ requires-dist = [
     { name = "cachetools" },
     { name = "homeassistant", specifier = ">=2026.3.2" },
     { name = "pyopenssl", specifier = "==25.3.0" },
+    { name = "requests", specifier = "==2.32.5" },
 ]
 
 [package.metadata.requires-dev]
