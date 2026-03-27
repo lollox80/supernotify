@@ -89,7 +89,7 @@ jobs:
         uv sync --group docs
         git config push.autoSetupRemote true
         git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-        git fetch origin gh-pages --depth=1
+        git fetch origin gh-pages
         if [ "${{ github.event_name }}" = "release" ]; then
           TAG="${{ github.event.release.tag_name }}"
           if [[ "${{ github.event.release.prerelease }}" = "true" ]]; then
