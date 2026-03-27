@@ -11,6 +11,10 @@ on:
   release:
     types: [published]
 
+concurrency:
+  group: gh-pages-deploy
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
