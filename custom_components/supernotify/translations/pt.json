@@ -1,0 +1,64 @@
+{
+    "title": "Supernotify",
+    "services": {
+        "reload": {
+            "name": "[%key:common::action::reload%]",
+            "description": "Recarrega os serviços do Supernotify."
+        },
+        "enquire_deliveries_by_scenario": {
+            "name": "Consultar entregas por cenário",
+            "description": "Assistente de depuração para mostrar a lista de entregas para cada cenário, incluindo o uso padrão"
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "Ambiente",
+                "data": {
+                    "template_path": "Caminho do modelo",
+                    "media_path": "Caminho de mídia",
+                    "archive_path": "Caminho do arquivo"
+                },
+                "data_description": {
+                    "template_path": "Localização opcional dos modelos Jinja2 para e-mails HTML",
+                    "media_path": "Caminho de armazenamento para mídia criada durante notificações, por exemplo capturas de câmera para anexos",
+                    "archive_path": "Caminho de armazenamento para notificações arquivadas, útil para depurar configuração, cenários etc."
+                }
+            }
+        }
+    },
+    "issues": {
+        "scenario_delivery": {
+            "title": "Entrega inválida para o cenário",
+            "description": "A definição do cenário {scenario} faz referência a uma entrega {delivery} que não existe na configuração do Supernotify"
+        },
+        "scenario_action_group": {
+            "title": "Grupo de ação móvel inválido para o cenário",
+            "description": "A definição do cenário {scenario} faz referência a uma entrega {action_group} que não existe na configuração do Supernotify"
+        },
+        "scenario_condition": {
+            "title": "Condição inválida para o cenário",
+            "description": "A definição do cenário {scenario} contém uma condição que não pode ser avaliada pelo Home Assistant"
+        },
+        "delivery_unknown_transport": {
+            "title": "Transporte desconhecido para a entrega",
+            "description": "A configuração de entrega {delivery} faz referência a um transporte {transport} que não é fornecido pelo SuperNotify"
+        },
+        "media_path": {
+            "title": "O caminho de mídia não pode ser usado",
+            "description": "Um caminho ({path}) foi fornecido para armazenar mídia como capturas de câmera durante as notificações, mas não pode ser usado (erro: {error})"
+        },
+        "delivery_reserved_name": {
+            "title": "A entrega tem um nome reservado",
+            "description": "O nome da entrega {delivery} é reservado para uso do Supernotify"
+        },
+        "delivery_invalid_action": {
+            "title": "A entrega tem uma ação inválida",
+            "description": "A entrega {delivery} tem uma ação inválida {action}"
+        },
+        "delivery_invalid_condition": {
+            "title": "A entrega tem uma condição inválida",
+            "description": "A entrega {delivery} tem uma condição inválida {condition}"
+        }
+    }
+}

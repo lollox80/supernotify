@@ -1,0 +1,64 @@
+{
+    "title": "Supernotify",
+    "services": {
+        "reload": {
+            "name": "[%key:common::action::reload%]",
+            "description": "Supernotifyサービスを再読み込みします。"
+        },
+        "enquire_deliveries_by_scenario": {
+            "name": "シナリオ別配信の照会",
+            "description": "デフォルトの使用法を含め、各シナリオの配信リストを表示するデバッグアシスタント"
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "環境",
+                "data": {
+                    "template_path": "テンプレートパス",
+                    "media_path": "メディアパス",
+                    "archive_path": "アーカイブパス"
+                },
+                "data_description": {
+                    "template_path": "HTMLメール用のJinja2テンプレートの保存場所（オプション）",
+                    "media_path": "通知中に作成されたメディア（添付ファイル用のカメラスナップショットなど）の保存パス",
+                    "archive_path": "アーカイブされた通知の保存パス。設定やシナリオのデバッグに役立ちます"
+                }
+            }
+        }
+    },
+    "issues": {
+        "scenario_delivery": {
+            "title": "シナリオの配信が無効です",
+            "description": "シナリオ定義 {scenario} は、Supernotify設定に存在しない配信 {delivery} を参照しています"
+        },
+        "scenario_action_group": {
+            "title": "シナリオのモバイルアクショングループが無効です",
+            "description": "シナリオ定義 {scenario} は、Supernotify設定に存在しない配信 {action_group} を参照しています"
+        },
+        "scenario_condition": {
+            "title": "シナリオの条件が無効です",
+            "description": "シナリオ定義 {scenario} には、Home Assistantで評価できない条件が含まれています"
+        },
+        "delivery_unknown_transport": {
+            "title": "配信のトランスポートが不明です",
+            "description": "配信設定 {delivery} は、SuperNotifyが提供していないトランスポート {transport} を参照しています"
+        },
+        "media_path": {
+            "title": "メディアパスを使用できません",
+            "description": "通知中のカメラスナップショットなどのメディアを保持するためのパス（{path}）が指定されましたが、使用できません（エラー: {error}）"
+        },
+        "delivery_reserved_name": {
+            "title": "配信名が予約済みです",
+            "description": "配信 {delivery} の名前はSupernotifyの使用のために予約されています"
+        },
+        "delivery_invalid_action": {
+            "title": "配信のアクションが無効です",
+            "description": "配信 {delivery} には無効なアクション {action} があります"
+        },
+        "delivery_invalid_condition": {
+            "title": "配信の条件が無効です",
+            "description": "配信 {delivery} には無効な条件 {condition} があります"
+        }
+    }
+}

@@ -1,6 +1,6 @@
 ![Supernotify](assets/images/dark_icon.png){ align=left }
 
-# Supernotify
+# Supernotify - Unified Notifications for Home Assistant
 
 [![Rhizomatics Open Source](https://img.shields.io/badge/rhizomatics%20open%20source-lightseagreen)](https://github.com/rhizomatics) [![hacs][hacsbadge]][hacs]
 
@@ -47,9 +47,9 @@ Supernotify is a custom component available via the [Home Assistant Community Sh
 
 Try [Getting Started](https://supernotify.rhizomatics.org.uk/getting_started/), the explanation of [core concepts](https://supernotify.rhizomatics.org.uk/concepts/), and the available [transport adaptors](https://supernotify.rhizomatics.org.uk/transports/) to understand what it can do. [Notifying](usage/notifying.md) shows how to call Supernotify from automations or the Developer Tools action page.
 
-There are lots of [recipes](https://supernotify.rhizomatics.org.uk/recipes/) with sample
-config snippers to give you some more ideas, or browse by [tags](https://supernotify.rhizomatics.org.uk/tags/).
+There are lots of [recipes](https://supernotify.rhizomatics.org.uk/recipes/) with sample config snippers to give you some more ideas, or browse by [tags](https://supernotify.rhizomatics.org.uk/tags/).
 
+Translations for the Home Assistant UI are available for Dutch, English, French, German, Hindi, Italian, Japanese, Polish, Portuguese, Simplified Mandarin and Spanish.
 
 ## Features
 

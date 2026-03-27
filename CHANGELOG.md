@@ -1,5 +1,8 @@
 # Public releases
 
+## 1.12.1
+- Translations for Dutch, French, German, Hindi, Italian, Japanese, Polish, Portuguese, Simplified Chinese and Spanish
+- Vertalingen voor Nederlands, Traductions en français, Übersetzungen auf Deutsch, हिंदी में अनुवाद, Traduzioni in italiano, 日本語の翻訳, Tłumaczenia po polsku, Traduções em português, 简体中文翻译 en traducciones al español
 ## 1.12.0
 ### Alexa Media Player
 Includes major fixes and improvements contributed by [@lollox80](https://github.com/lollox80)

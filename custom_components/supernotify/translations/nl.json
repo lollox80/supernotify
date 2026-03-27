@@ -1,0 +1,64 @@
+{
+    "title": "Supernotify",
+    "services": {
+        "reload": {
+            "name": "[%key:common::action::reload%]",
+            "description": "Herlaadt Supernotify-diensten."
+        },
+        "enquire_deliveries_by_scenario": {
+            "name": "Bezorgingen per scenario opvragen",
+            "description": "Foutopsporingsassistent om de lijst met bezorgingen voor elk scenario te tonen, inclusief standaardgebruik"
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "Omgeving",
+                "data": {
+                    "template_path": "Sjabloonpad",
+                    "media_path": "Mediapad",
+                    "archive_path": "Archiefpad"
+                },
+                "data_description": {
+                    "template_path": "Optionele locatie voor Jinja2-sjablonen voor HTML-e-mails",
+                    "media_path": "Opslagpad voor media die tijdens meldingen zijn aangemaakt, zoals camera-snapshots voor bijlagen",
+                    "archive_path": "Opslagpad voor gearchiveerde meldingen, handig voor het debuggen van configuratie, scenario's enz."
+                }
+            }
+        }
+    },
+    "issues": {
+        "scenario_delivery": {
+            "title": "Ongeldige bezorging voor scenario",
+            "description": "Scenariodefinitie {scenario} verwijst naar een bezorging {delivery} die niet bestaat in de Supernotify-configuratie"
+        },
+        "scenario_action_group": {
+            "title": "Ongeldige mobiele actiegroep voor scenario",
+            "description": "Scenariodefinitie {scenario} verwijst naar een bezorging {action_group} die niet bestaat in de Supernotify-configuratie"
+        },
+        "scenario_condition": {
+            "title": "Ongeldige voorwaarde voor scenario",
+            "description": "Scenariodefinitie {scenario} bevat een voorwaarde die niet door Home Assistant kan worden geëvalueerd"
+        },
+        "delivery_unknown_transport": {
+            "title": "Onbekend transport voor bezorging",
+            "description": "Bezorgingsconfiguratie {delivery} verwijst naar een transport {transport} dat niet door SuperNotify wordt geleverd"
+        },
+        "media_path": {
+            "title": "Mediapad kan niet worden gebruikt",
+            "description": "Er is een pad ({path}) opgegeven voor het opslaan van media zoals camera-snapshots tijdens meldingen, maar het kan niet worden gebruikt (fout: {error})"
+        },
+        "delivery_reserved_name": {
+            "title": "Bezorging heeft een gereserveerde naam",
+            "description": "De naam van bezorging {delivery} is gereserveerd voor Supernotify-gebruik"
+        },
+        "delivery_invalid_action": {
+            "title": "Bezorging heeft een ongeldige actie",
+            "description": "Bezorging {delivery} heeft een ongeldige actie {action}"
+        },
+        "delivery_invalid_condition": {
+            "title": "Bezorging heeft een ongeldige voorwaarde",
+            "description": "Bezorging {delivery} heeft een ongeldige voorwaarde {condition}"
+        }
+    }
+}

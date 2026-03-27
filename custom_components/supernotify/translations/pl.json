@@ -1,0 +1,64 @@
+{
+    "title": "Supernotify",
+    "services": {
+        "reload": {
+            "name": "[%key:common::action::reload%]",
+            "description": "Ponownie ładuje usługi Supernotify."
+        },
+        "enquire_deliveries_by_scenario": {
+            "name": "Zapytaj o dostarczenia według scenariusza",
+            "description": "Asystent debugowania do wyświetlania listy dostarczeń dla każdego scenariusza, w tym domyślnego użycia"
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "Środowisko",
+                "data": {
+                    "template_path": "Ścieżka szablonu",
+                    "media_path": "Ścieżka mediów",
+                    "archive_path": "Ścieżka archiwum"
+                },
+                "data_description": {
+                    "template_path": "Opcjonalna lokalizacja szablonów Jinja2 dla wiadomości e-mail HTML",
+                    "media_path": "Ścieżka przechowywania mediów utworzonych podczas powiadomień, na przykład zdjęć z kamer do załączników",
+                    "archive_path": "Ścieżka przechowywania zarchiwizowanych powiadomień, przydatna do debugowania konfiguracji, scenariuszy itp."
+                }
+            }
+        }
+    },
+    "issues": {
+        "scenario_delivery": {
+            "title": "Nieprawidłowe dostarczenie dla scenariusza",
+            "description": "Definicja scenariusza {scenario} odwołuje się do dostarczenia {delivery}, które nie istnieje w konfiguracji Supernotify"
+        },
+        "scenario_action_group": {
+            "title": "Nieprawidłowa mobilna grupa akcji dla scenariusza",
+            "description": "Definicja scenariusza {scenario} odwołuje się do dostarczenia {action_group}, które nie istnieje w konfiguracji Supernotify"
+        },
+        "scenario_condition": {
+            "title": "Nieprawidłowy warunek dla scenariusza",
+            "description": "Definicja scenariusza {scenario} zawiera warunek, który nie może być oceniony przez Home Assistant"
+        },
+        "delivery_unknown_transport": {
+            "title": "Nieznany transport dla dostarczenia",
+            "description": "Konfiguracja dostarczenia {delivery} odwołuje się do transportu {transport}, który nie jest dostarczany przez SuperNotify"
+        },
+        "media_path": {
+            "title": "Ścieżka mediów nie może być użyta",
+            "description": "Podano ścieżkę ({path}) do przechowywania mediów, takich jak zdjęcia z kamer podczas powiadomień, ale nie można jej użyć (błąd: {error})"
+        },
+        "delivery_reserved_name": {
+            "title": "Dostarczenie ma zarezerwowaną nazwę",
+            "description": "Nazwa dostarczenia {delivery} jest zarezerwowana do użytku przez Supernotify"
+        },
+        "delivery_invalid_action": {
+            "title": "Dostarczenie ma nieprawidłową akcję",
+            "description": "Dostarczenie {delivery} ma nieprawidłową akcję {action}"
+        },
+        "delivery_invalid_condition": {
+            "title": "Dostarczenie ma nieprawidłowy warunek",
+            "description": "Dostarczenie {delivery} ma nieprawidłowy warunek {condition}"
+        }
+    }
+}

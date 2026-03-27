@@ -1,0 +1,64 @@
+{
+    "title": "Supernotify",
+    "services": {
+        "reload": {
+            "name": "[%key:common::action::reload%]",
+            "description": "सुपरनोटिफाई सेवाएं पुनः लोड करता है।"
+        },
+        "enquire_deliveries_by_scenario": {
+            "name": "परिदृश्य के अनुसार डिलीवरी पूछताछ करें",
+            "description": "डिफ़ॉल्ट उपयोग सहित प्रत्येक परिदृश्य के लिए डिलीवरी सूची दिखाने वाला डीबग सहायक"
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "पर्यावरण",
+                "data": {
+                    "template_path": "टेम्पलेट पथ",
+                    "media_path": "मीडिया पथ",
+                    "archive_path": "संग्रह पथ"
+                },
+                "data_description": {
+                    "template_path": "HTML ईमेल के लिए Jinja2 टेम्पलेट का वैकल्पिक स्थान",
+                    "media_path": "सूचनाओं के दौरान बनाए गए मीडिया के लिए संग्रहण पथ, उदाहरण के लिए संलग्नक के लिए बनाए गए कैमरा स्नैपशॉट",
+                    "archive_path": "संग्रहीत सूचनाओं के लिए संग्रहण पथ, कॉन्फ़िगरेशन, परिदृश्य आदि डीबग करने के लिए उपयोगी"
+                }
+            }
+        }
+    },
+    "issues": {
+        "scenario_delivery": {
+            "title": "परिदृश्य के लिए अमान्य डिलीवरी",
+            "description": "परिदृश्य परिभाषा {scenario} एक डिलीवरी {delivery} को संदर्भित करती है जो सुपरनोटिफाई कॉन्फ़िगरेशन में मौजूद नहीं है"
+        },
+        "scenario_action_group": {
+            "title": "परिदृश्य के लिए अमान्य मोबाइल क्रिया समूह",
+            "description": "परिदृश्य परिभाषा {scenario} एक डिलीवरी {action_group} को संदर्भित करती है जो सुपरनोटिफाई कॉन्फ़िगरेशन में मौजूद नहीं है"
+        },
+        "scenario_condition": {
+            "title": "परिदृश्य के लिए अमान्य शर्त",
+            "description": "परिदृश्य परिभाषा {scenario} में एक शर्त है जिसे Home Assistant द्वारा मूल्यांकित नहीं किया जा सकता"
+        },
+        "delivery_unknown_transport": {
+            "title": "डिलीवरी के लिए अज्ञात परिवहन",
+            "description": "डिलीवरी कॉन्फ़िगरेशन {delivery} एक परिवहन {transport} को संदर्भित करती है जो SuperNotify द्वारा प्रदान नहीं की जाती"
+        },
+        "media_path": {
+            "title": "मीडिया पथ का उपयोग नहीं किया जा सकता",
+            "description": "सूचनाओं के दौरान कैमरा स्नैपशॉट जैसे मीडिया रखने के लिए एक पथ ({path}) प्रदान किया गया है लेकिन इसका उपयोग नहीं किया जा सकता (त्रुटि: {error})"
+        },
+        "delivery_reserved_name": {
+            "title": "डिलीवरी का नाम आरक्षित है",
+            "description": "डिलीवरी {delivery} का नाम Supernotify उपयोग के लिए आरक्षित है"
+        },
+        "delivery_invalid_action": {
+            "title": "डिलीवरी की क्रिया अमान्य है",
+            "description": "डिलीवरी {delivery} में एक अमान्य क्रिया {action} है"
+        },
+        "delivery_invalid_condition": {
+            "title": "डिलीवरी की शर्त अमान्य है",
+            "description": "डिलीवरी {delivery} में एक अमान्य शर्त {condition} है"
+        }
+    }
+}

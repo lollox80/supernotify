@@ -1,0 +1,64 @@
+{
+    "title": "Supernotify",
+    "services": {
+        "reload": {
+            "name": "[%key:common::action::reload%]",
+            "description": "重新加载 Supernotify 服务。"
+        },
+        "enquire_deliveries_by_scenario": {
+            "name": "按场景查询推送",
+            "description": "调试助手，用于显示每个场景的推送列表，包括默认使用情况"
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "环境",
+                "data": {
+                    "template_path": "模板路径",
+                    "media_path": "媒体路径",
+                    "archive_path": "存档路径"
+                },
+                "data_description": {
+                    "template_path": "HTML 电子邮件的 Jinja2 模板的可选存储位置",
+                    "media_path": "通知期间创建的媒体（例如附件的摄像头快照）的存储路径",
+                    "archive_path": "已存档通知的存储路径，用于调试配置、场景等"
+                }
+            }
+        }
+    },
+    "issues": {
+        "scenario_delivery": {
+            "title": "场景的推送无效",
+            "description": "场景定义 {scenario} 引用了 Supernotify 配置中不存在的推送 {delivery}"
+        },
+        "scenario_action_group": {
+            "title": "场景的移动操作组无效",
+            "description": "场景定义 {scenario} 引用了 Supernotify 配置中不存在的推送 {action_group}"
+        },
+        "scenario_condition": {
+            "title": "场景条件无效",
+            "description": "场景定义 {scenario} 包含 Home Assistant 无法评估的条件"
+        },
+        "delivery_unknown_transport": {
+            "title": "推送的传输方式未知",
+            "description": "推送配置 {delivery} 引用了 SuperNotify 不提供的传输方式 {transport}"
+        },
+        "media_path": {
+            "title": "无法使用媒体路径",
+            "description": "已提供路径 ({path}) 用于在通知期间保存摄像头快照等媒体，但无法使用（错误：{error}）"
+        },
+        "delivery_reserved_name": {
+            "title": "推送使用了保留名称",
+            "description": "推送 {delivery} 的名称为 Supernotify 保留使用"
+        },
+        "delivery_invalid_action": {
+            "title": "推送的操作无效",
+            "description": "推送 {delivery} 包含无效操作 {action}"
+        },
+        "delivery_invalid_condition": {
+            "title": "推送的条件无效",
+            "description": "推送 {delivery} 包含无效条件 {condition}"
+        }
+    }
+}
