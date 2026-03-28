@@ -1,4 +1,4 @@
-![Supernotify](assets/images/dark_icon.png){ align=left }
+![Supernotify](../assets/images/dark_icon.png){ align=left }
 
 # Supernotify
 
