@@ -791,17 +791,24 @@ class Notification(ArchivableObject):
             # a target is always generated, even if there are no recipients
             if target.has_resolved_target() or delivery.target_required != TargetRequired.ALWAYS:
                 envelope_data = {}
+
+                # least priority - delivery derived data
                 envelope_data.update(delivery.data)
-                envelope_data.update({
-                    k: v for k, v in self.extra_data.items() if k not in INTERNAL_DATA_KEYS
-                })  # action call data
+                # next least priority - target derived data
                 if target.target_data:
                     envelope_data.update(target.target_data)
+
                 # scenario applied at cross-delivery level in apply_enabled_scenarios
                 for scenario in self.enabled_scenarios.values():
                     customization: DeliveryCustomization | None = scenario.delivery_customization(delivery.name)
                     if customization and customization.data:
                         envelope_data.update(customization.data)
+
+                # apply data from action call last to prioritize it
+                envelope_data.update({
+                    k: v for k, v in self.extra_data.items() if k not in INTERNAL_DATA_KEYS
+                })  # action call data
+
                 envelopes.append(Envelope(delivery, self, target, envelope_data, context=self.context))
 
         return envelopes

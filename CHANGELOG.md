@@ -1,6 +1,7 @@
 # Public releases
 
 ## 1.12.2
+- Prioritize data from action call over scenario or target derived data
 - Minor test and lint fixes for 3.14, and improved test coverage
 ## 1.12.1
 - Translations for Dutch, French, German, Hindi, Italian, Japanese, Polish, Portuguese, Simplified Chinese and Spanish
