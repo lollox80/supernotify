@@ -80,7 +80,8 @@ docs=[
     "mkdocs-minify-html-plugin",
     "mkdocs-meta-descriptions-plugin",
     "mike",
-    "mkdocs-htmlproofer-plugin"
+    "mkdocs-htmlproofer-plugin",
+    "mkdocs[i18n]"
 ]
 
 [project.optional-dependencies]
