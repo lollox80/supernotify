@@ -61,7 +61,8 @@ class Snooze:
 
     def __repr__(self) -> str:
         """Return a string representation of the object."""
-        return f"Snooze({self.target_type}, {self.target}, {self.std_recipient()})"
+        target = "GLOBAL" if self.target_type in GlobalTargetType else f"{self.target_type}_{self.target}"
+        return f"Snooze({target}, {self.std_recipient()})"
 
     def active(self) -> bool:
         return self.snooze_until is None or self.snooze_until > dt_util.now()
