@@ -90,7 +90,7 @@ docs=[
 override-dependencies = [
     #"voluptuous-openapi==0.2.0"
 ]
-exclude-newer = "2 days"
+exclude-newer = "5 days"
 
 [tool.ruff]
 line-length = 128
