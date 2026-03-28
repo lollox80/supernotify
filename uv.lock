@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.14.2"
 
 [options]
-exclude-newer = "2026-03-18T17:34:29.147663Z"
+exclude-newer = "2026-03-18T17:36:50.300605Z"
 exclude-newer-span = "P10D"
 
 [[package]]
@@ -3109,6 +3109,7 @@ dependencies = [
     { name = "aiofiles" },
     { name = "bs4" },
     { name = "cachetools" },
+    { name = "cryptography" },
     { name = "homeassistant" },
 ]
 
@@ -3161,6 +3162,7 @@ requires-dist = [
     { name = "aiofiles" },
     { name = "bs4" },
     { name = "cachetools" },
+    { name = "cryptography", specifier = "==46.0.5" },
     { name = "homeassistant", specifier = ">=2026.3.2" },
 ]
 
