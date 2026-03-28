@@ -2,7 +2,6 @@ import socket
 from typing import TYPE_CHECKING
 
 import pytest
-from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv
 
@@ -12,6 +11,8 @@ from custom_components.supernotify.model import ConditionVariables, SelectionRul
 from .hass_setup_lib import register_device
 
 if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse
+
     from custom_components.supernotify.schema import ConditionsFunc
 
 

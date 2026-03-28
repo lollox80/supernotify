@@ -1,15 +1,18 @@
 import datetime as dt
 import logging
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import Event
 from homeassistant.util import dt as dt_util
 
 from .const import ATTR_ACTION, ATTR_MOBILE_APP_ID, ATTR_PERSON_ID, CONF_SNOOZE_TIME, PRIORITY_CRITICAL, PRIORITY_MEDIUM
-from .delivery import Delivery
 from .model import CommandType, GlobalTargetType, QualifiedTargetType, RecipientType, Target, TargetType
-from .people import PeopleRegistry, Recipient
+
+if TYPE_CHECKING:
+    from homeassistant.core import Event
+
+    from .delivery import Delivery
+    from .people import PeopleRegistry, Recipient
 
 _LOGGER = logging.getLogger(__name__)
 

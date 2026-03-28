@@ -1,9 +1,9 @@
 import logging
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 from homeassistant.components.profiler import CONF_ENABLED
 from homeassistant.const import CONF_ACTION, CONF_ALIAS, CONF_CONDITIONS
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers.issue_registry import IssueSeverity
 from pytest_unordered import unordered
 
@@ -28,6 +28,9 @@ from custom_components.supernotify.schema import SCENARIO_SCHEMA
 
 from .doubles_lib import DummyTransport
 from .hass_setup_lib import TestingContext
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -2,14 +2,13 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiofiles
 import anyio
 import pytest
 from homeassistant.const import CONF_ENABLED
-from homeassistant.core import HomeAssistant
 
 from custom_components.supernotify.archive import ArchivableObject, NotificationArchive
 from custom_components.supernotify.const import (
@@ -20,9 +19,13 @@ from custom_components.supernotify.const import (
     CONF_ARCHIVE_MQTT_TOPIC,
     CONF_ARCHIVE_PATH,
 )
-from custom_components.supernotify.hass_api import HomeAssistantAPI
 from custom_components.supernotify.notify import SupernotifyAction
 from custom_components.supernotify.schema import SCENARIO_SCHEMA, OutcomeSelection
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
+
+    from custom_components.supernotify.hass_api import HomeAssistantAPI
 
 
 class ArchiveCrashDummy(ArchivableObject):

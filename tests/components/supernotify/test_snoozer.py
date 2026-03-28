@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 from homeassistant.core import Event
 
@@ -7,12 +8,14 @@ from custom_components.supernotify.const import (
     PRIORITY_CRITICAL,
     PRIORITY_MEDIUM,
 )
-from custom_components.supernotify.context import Context
 from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.model import CommandType, GlobalTargetType, QualifiedTargetType, RecipientType, Target
-from custom_components.supernotify.people import PeopleRegistry
 from custom_components.supernotify.snoozer import Snooze, Snoozer
 from custom_components.supernotify.transports.email import EmailTransport
+
+if TYPE_CHECKING:
+    from custom_components.supernotify.context import Context
+    from custom_components.supernotify.people import PeopleRegistry
 
 
 def test_do_nothing_filter_recipients(mock_context) -> None:

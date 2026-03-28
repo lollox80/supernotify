@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
@@ -7,15 +8,17 @@ from homeassistant.core import HomeAssistant, SupportsResponse
 from custom_components.supernotify.const import CONF_DELIVERY_DEFAULTS, TRANSPORT_GENERIC
 from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.envelope import Envelope
-from custom_components.supernotify.hass_api import HomeAssistantAPI
 from custom_components.supernotify.model import DeliveryConfig, Target, TransportConfig, TransportFeature
 from custom_components.supernotify.notification import Notification
 from custom_components.supernotify.notify import TRANSPORTS
-from custom_components.supernotify.transport import Transport
 from custom_components.supernotify.transports.generic import GenericTransport
 
 from .doubles_lib import DummyService
 from .hass_setup_lib import TestingContext
+
+if TYPE_CHECKING:
+    from custom_components.supernotify.hass_api import HomeAssistantAPI
+    from custom_components.supernotify.transport import Transport
 
 
 def test_simplify_text() -> None:
