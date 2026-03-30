@@ -33,3 +33,15 @@ scenarios:
 
 - Use date ranges to alter times across the year
 - Define the opposite of bedtime, and use that to allow only notifications then
+- Create a [Times of the Day](https://www.home-assistant.io/integrations/tod/) or [Workday](https://www.home-assistant.io/integrations/workday/) binary sensor from **Settings > Devices & services > Helpers** page.
+
+```yaml
+scenarios:
+  bedtime:
+        conditions:
+          - condition: state
+            entity_id: binary_sensor.bedtime
+            state: "on"
+```
+
+![Bedtime Helper Binary Sensor](../assets/images/bedtime_helper.png)
