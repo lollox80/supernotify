@@ -218,6 +218,29 @@ scenarios:
           enabled: false
 ```
 
+### Suppress some notifications
+
+Use a scenario with a wildcard delivery to switch off all notification channels.
+
+```yaml title="Supernofify config snippet"
+silence_frigate:
+      alias: Don't notify about people identified as the occupants if the house is occupied
+      conditions:
+        condition: and
+        conditions:
+          - "{{'A Person, Joe' in notification_message|upper}}"
+          - "{{'A Person, Mary' in notification_message|upper}}"
+          - condition: state
+            entity_id: alarm_control_panel.home_alarm_control
+            state:
+              - disarmed
+              - armed_home
+              - armed_night
+      delivery:
+        .*:
+          enabled: false
+```
+
 ## References and Further Reading
 
 * Frigate
