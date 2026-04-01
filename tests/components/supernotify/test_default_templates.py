@@ -57,8 +57,8 @@ async def test_example_template_strict_parsed(hass: HomeAssistant) -> None:
     )
     await ctx.hass.async_block_till_done()
     assert uut.error_count == 0
-    assert len(ctx.services["notify.smtp"].calls) == 1
-    service_call: ServiceCall = ctx.services["notify.smtp"].calls[0]
+    assert len(ctx.services["notify"]["smtp"].calls) == 1
+    service_call: ServiceCall = ctx.services["notify"]["smtp"].calls[0]
     html: str = service_call.data["data"]["html"]
     assert "{%" not in html
     assert "{{" not in html

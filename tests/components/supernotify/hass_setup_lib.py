@@ -175,7 +175,7 @@ class TestingContext(Context):
         hass_external_url: str | None = None,
         archive_config: ConfigType | str | None = None,
         homeassistant: HomeAssistant | None = None,
-        services: dict[str, list[str]] | None = None,
+        services: dict[str, list[str] | list[dict[str, Any]]] | None = None,
         components: dict[str, dict[str, Any]] | None = None,
         media_path: Path | None = None,
         template_path: Path | None = None,
@@ -188,6 +188,7 @@ class TestingContext(Context):
             for ddomain, did, discover in devices or []
         }
         self.entities = entities or {}
+        self.services: dict[str, Any] = {}
 
         raw_config: ConfigType = cast("ConfigType", load_config(yaml))
         raw_config.setdefault("name", "Supernotify")
@@ -226,6 +227,7 @@ class TestingContext(Context):
             self.hass.states = Mock(StateMachine)
             self.hass.services = Mock(ServiceRegistry)
             self.hass.services.async_call = AsyncMock()
+            self.hass.services.async_services_for_domain = lambda domain: self.services.get(domain, {})
             self.hass.config.internal_url = "http://127.0.0.1:28123"
             self.hass.config.external_url = hass_external_url or "https://my.home"
             self.hass.data = {}
@@ -260,11 +262,16 @@ class TestingContext(Context):
 
         self.hass_external_url = hass_external_url
         if services:
-            self.services = {
-                f"{domain}.{action}": DummyService(self.hass, domain, action)
-                for domain, actions in services.items()
-                for action in actions
-            }
+            for domain, actions in services.items():
+                self.services.setdefault(domain, {})
+                for action_or_action_kwargs in actions:
+                    if isinstance(action_or_action_kwargs, dict):
+                        action = action_or_action_kwargs.pop("action")
+                        self.services[domain][action] = DummyService(self.hass, domain, action, **action_or_action_kwargs)
+                    else:
+                        self.services[domain][action_or_action_kwargs] = DummyService(
+                            self.hass, domain, action_or_action_kwargs
+                        )
 
         hass_api = HomeAssistantAPI(self.hass)
         people_registry = PeopleRegistry(self.config.get(CONF_RECIPIENTS) or [], hass_api)

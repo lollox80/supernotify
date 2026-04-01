@@ -1,5 +1,13 @@
 # Public releases
 
+## 1.13.0
+### Transport Generic
+- Replaced hard-coded allow-list of fields per underlying service with dynamic validation using the service's action schema to prune out unsupported fields or make type conversions.
+  - Generic can also now support a much wider set of Home Assistant built-in and custom integrations reliably, pruning out data wherever a schema is provided
+- Added support for [notify_events](https://www.home-assistant.io/integrations/notify_events), translating standard priority and passing on image URLs in expected format. Use `handle_as_domain: notify_events` for the specific processing
+- Corrected `ntfy` integration handling of images and actions
+### Archiving
+- Use local timezone for archive notification file path
 ## 1.12.2
 - Prioritize data from action call over scenario or target derived data
 - Minor test and lint fixes for 3.14, and improved test coverage

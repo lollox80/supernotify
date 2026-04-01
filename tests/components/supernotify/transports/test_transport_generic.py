@@ -2,7 +2,15 @@ from unittest.mock import Mock, call
 
 from homeassistant.components.notify.const import ATTR_DATA, ATTR_MESSAGE, ATTR_TARGET, ATTR_TITLE
 from homeassistant.components.notify.const import DOMAIN as NOTIFY_DOMAIN
+
+try:
+    from homeassistant.components.ntfy.notify import SERVICE_PUBLISH_SCHEMA  # type: ignore[import-not-found]
+except ImportError:
+    from homeassistant.components.ntfy.services import SERVICE_PUBLISH_SCHEMA  # type: ignore[no-redef,import-not-found]
+from homeassistant.components.script import SCRIPT_TURN_ONOFF_SCHEMA
+from homeassistant.components.siren import TURN_ON_SCHEMA
 from homeassistant.const import CONF_ACTION
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.service import async_call_from_config
 from homeassistant.setup import async_setup_component
 
@@ -202,22 +210,18 @@ def test_prune_fields():
     assert (
         customize_data(
             sample,
-            "testing",
             delivery,
         )
         == {}
     )
     assert customize_data(
         {"fee": 123, "foo": 789},
-        "testing",
         delivery,
     ) == {"fee": 123}
 
-    assert customize_data(sample, "testing", Delivery("", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: "f.*"}}, uut)) == {
-        "foo": 123
-    }
+    assert customize_data(sample, Delivery("", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: "f.*"}}, uut)) == {"foo": 123}
     assert customize_data(
-        sample, "testing", Delivery("", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: {SELECT_EXCLUDE: ["enabled"]}}}, uut)
+        sample, Delivery("", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: {SELECT_EXCLUDE: ["enabled"]}}}, uut)
     ) == {
         "foo": 123,
         "bar": 789,
@@ -226,15 +230,12 @@ def test_prune_fields():
     assert (
         customize_data(
             {},
-            "testing",
             Delivery(
                 "", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: {SELECT_INCLUDE: ["f.*"], SELECT_EXCLUDE: ["enabled"]}}}, uut
             ),
         )
         == {}
     )
-
-    assert customize_data({"duration": 1.0, "foo": 123}, "siren", Delivery("", {}, uut)) == {"duration": 1.0}
 
 
 async def test_slack_notify() -> None:
@@ -287,13 +288,15 @@ async def test_ntfy_publish() -> None:
                     - joe@mctest.org
                     - mary@mctest.org
             """,
-        services={"ntfy": ["publish"]},
+        services={"ntfy": [{"action": "publish", "schema": SERVICE_PUBLISH_SCHEMA}]},
         transport_types=[GenericTransport],
     )
 
     await ctx.test_initialize()
     uut = Notification(
-        ctx, message="test message", action_data={"delivery": {"ntfy": {"enabled": True}}, "data": {"tags": ["a", "b"]}}
+        ctx,
+        message="test message",
+        action_data={"delivery": {"ntfy": {"enabled": True}}, "data": {"tags": ["a", "b"], "nonsense": False}},
     )
     await uut.initialize()
     await uut.deliver()
@@ -321,13 +324,14 @@ async def test_ntfy_publish() -> None:
             call(
                 "ntfy",
                 "publish",
-                service_data={"message": "test message", "tags": ["a", "b"], "entity_id": ["notify.topic_1", "notify.topic_2"]},
+                service_data={"message": "test message", "tags": ["a", "b"]},
                 blocking=False,
                 target={"entity_id": ["notify.topic_1", "notify.topic_2"]},
                 context=None,
                 return_response=False,
             ),
-        ]
+        ],
+        any_order=True,
     )
 
 
@@ -370,7 +374,7 @@ async def test_script_turn_on() -> None:
                 action: script.turn_on
                 target: script.dazzle
             """,
-        services={"script": ["turn_on"]},
+        services={"script": [{"action": "turn_on", "schema": SCRIPT_TURN_ONOFF_SCHEMA}]},
         transport_types=[GenericTransport],
     )
 
@@ -382,7 +386,7 @@ async def test_script_turn_on() -> None:
     uut.context.hass_api._hass.services.async_call.assert_called_once_with(  # type:ignore [union-attr]
         "script",
         "turn_on",
-        service_data={"variables": {"message": "test message", "strobe_period": 10}, "entity_id": ["script.dazzle"]},
+        service_data={"variables": {"message": "test message", "strobe_period": 10}},
         blocking=False,
         target={"entity_id": ["script.dazzle"]},
         context=None,
@@ -420,7 +424,7 @@ async def test_notify_send_message() -> None:
     uut.context.hass_api._hass.services.async_call.assert_called_once_with(  # type:ignore [union-attr]
         "notify",
         "send_message",
-        service_data={"message": "test message", "entity_id": ["notify.my_entity"]},
+        service_data={"message": "test message"},
         blocking=False,
         target={"entity_id": ["notify.my_entity"]},
         context=None,
@@ -448,7 +452,7 @@ async def test_input_text_with_value() -> None:
     uut.context.hass_api._hass.services.async_call.assert_called_once_with(  # type:ignore [union-attr]
         "input_text",
         "set_value",
-        service_data={"value": "explicit value", "entity_id": ["input_text.motd"]},
+        service_data={"value": "explicit value"},
         blocking=False,
         target={"entity_id": ["input_text.motd"]},
         context=None,
@@ -548,19 +552,21 @@ async def test_siren_delivery() -> None:
                 action: siren.turn_on
                 target: siren.front_door
             """,
-        services={"siren": ["turn_on"]},
+        services={"siren": [{"action": "turn_on", "schema": cv.make_entity_service_schema(TURN_ON_SCHEMA)}]},
         transport_types=[GenericTransport],
     )
 
     await ctx.test_initialize()
-    uut = Notification(ctx, message="test", action_data={"delivery": "alarm", "data": {"tone": "fire"}})
+    uut = Notification(
+        ctx, message="test", action_data={"delivery": "alarm", "data": {"tone": "fire", "extra": 123, "image": "piccie.jpg"}}
+    )
     await uut.initialize()
     await uut.deliver()
 
     uut.context.hass_api._hass.services.async_call.assert_called_once_with(  # type:ignore [union-attr]
         "siren",
         "turn_on",
-        service_data={"tone": "fire", "entity_id": ["siren.front_door"]},
+        service_data={"tone": "fire"},
         blocking=False,
         target={"entity_id": ["siren.front_door"]},
         context=None,
@@ -639,7 +645,11 @@ async def test_ntfy_with_priority() -> None:
         message="test message",
         action_data={
             "delivery": "ntfy",
-            "data": {"priority": "high", "snapshot_url": "http://img.url", "action_url": "http://click.url"},
+            "data": {
+                "priority": "high",
+                "media": {"snapshot_url": "http://img.url"},
+                "actions": [{"action_url": "http://click.url"}],
+            },
         },
     )
     await uut.initialize()
@@ -651,15 +661,12 @@ async def test_ntfy_with_priority() -> None:
         service_data={
             "message": "test message",
             "priority": 4,
-            "snapshot_url": "http://img.url",
-            "action_url": "http://click.url",
             "attach": "http://img.url",
             "click": "http://click.url",
-            "entity_id": [],
         },
         blocking=False,
-        target={"entity_id": []},
         context=None,
+        target={"entity_id": []},
         return_response=False,
     )
 
@@ -686,7 +693,7 @@ async def test_ntfy_single_email_single_entity() -> None:
     uut.context.hass_api._hass.services.async_call.assert_called_with(  # type:ignore [union-attr]
         "ntfy",
         "publish",
-        service_data={"message": "test message", "email": "joe@test.org", "entity_id": ["notify.topic_1"]},
+        service_data={"message": "test message", "email": "joe@test.org"},
         blocking=False,
         target={"entity_id": ["notify.topic_1"]},
         context=None,
@@ -718,6 +725,52 @@ async def test_ntfy_with_phone() -> None:
         "ntfy",
         "publish",
         service_data={"message": "test message", "call": "+447979123456"},
+        blocking=False,
+        target=None,
+        context=None,
+        return_response=False,
+    )
+
+
+async def test_notify_events() -> None:
+    ctx = TestingContext(
+        deliveries="""
+            events:
+                transport: generic
+                action: notify.eventer
+                options:
+                    handle_as_domain: notify_events
+            """,
+        services={"notify": [{"action": "eventer"}]},
+        transport_types=[GenericTransport],
+    )
+
+    await ctx.test_initialize()
+    uut = Notification(
+        ctx,
+        message="test message",
+        title="Test Event!",
+        action_data={
+            "delivery": "events",
+            "data": {"priority": "high", "level": "warning", "token": "1234abcd", "media": {"snapshot_url": "http://test"}},
+        },
+    )
+    await uut.initialize()
+    await uut.deliver()
+
+    uut.context.hass_api._hass.services.async_call.assert_called_with(  # type:ignore [union-attr]
+        "notify",
+        "eventer",
+        service_data={
+            "message": "test message",
+            "data": {
+                "title": "Test Event!",
+                "priority": "high",
+                "level": "warning",
+                "token": "1234abcd",
+                "images": [{"url": "http://test"}],
+            },
+        },
         blocking=False,
         target=None,
         context=None,

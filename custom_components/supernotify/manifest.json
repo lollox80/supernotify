@@ -2,11 +2,13 @@
     "domain": "supernotify",
     "name": "Supernotify",
     "after_dependencies": [
+        "alexa_devices",
         "mobile_app",
         "mqtt",
-        "alexa_devices",
+        "smtp",
+        "tod",
         "trace",
-        "smtp"
+        "workday"
     ],
     "codeowners": [
         "@jey"
@@ -26,5 +28,5 @@
         "cachetools",
         "httpx"
     ],
-    "version":"1.12.2"
+    "version":"1.13.0"
 }

@@ -5,6 +5,7 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     CONF_DEBUG,
 )
+from homeassistant.core import SupportsResponse
 from homeassistant.exceptions import NoEntitySpecifiedError
 
 from custom_components.supernotify.const import (
@@ -210,6 +211,7 @@ async def test_script_debug() -> None:
             }
         },
         deliveries={"chimes": {CONF_TRANSPORT: TRANSPORT_CHIME, CONF_DEBUG: True, CONF_DATA: {"chime_tune": "doorbell"}}},
+        services={"script": [{"action": "turn_on", "supports_response": SupportsResponse.OPTIONAL}]},
     )
 
     await context.test_initialize()
@@ -236,6 +238,7 @@ async def test_script_debug() -> None:
                     "wait": True,
                 },
                 blocking=True,
+                context=None,
                 return_response=True,
                 target={"entity_id": "script.front_door_bell"},
             )

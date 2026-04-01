@@ -17,8 +17,10 @@ from custom_components.supernotify.notify import TRANSPORTS
 from custom_components.supernotify.transport import Transport
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
+    import voluptuous as vol
     from homeassistant.helpers.typing import ConfigType
 
     from custom_components.supernotify.context import Context
@@ -49,26 +51,39 @@ def service_call(
 class DummyService:
     """Dummy service for testing purposes."""
 
+    MOCKED_SERVICES: dict[tuple[str, str], Callable] = {}  # noqa: RUF012
+
     def __init__(
         self,
         hass: HomeAssistant | None,
         domain: str = "notify",
         action: str = "custom_test",
-        supports_response=SupportsResponse.OPTIONAL,
+        supports_response: SupportsResponse = SupportsResponse.NONE,
+        schema: vol.Schema | None = None,
         response: ServiceResponse | None = None,
         exception: Exception | None = None,
     ) -> None:
         self.hass = hass
         self.calls: list[ServiceCall] = []
-        self.response = response
+        self.supports_response: SupportsResponse = supports_response
         self.exception = exception
-        self.action = action
-        self.domain = domain
+        self.action: str = action
+        self.domain: str = domain
+        self.schema = schema
+        self.response: ServiceResponse | None = response
         if hass is not None:
             if isinstance(hass, Mock):
-                hass.services.async_call.side_effect = self.mocked_service_call
+                DummyService.MOCKED_SERVICES[domain, action] = self.mocked_service_call
+                hass.services.async_call.side_effect = self.service_delegator
             else:
-                hass.services.async_register(domain, action, self.service_call, supports_response=supports_response)
+                hass.services.async_register(
+                    domain, action, self.service_call, schema=schema, supports_response=supports_response
+                )
+
+    @classmethod
+    def service_delegator(cls, domain: str, action: str, **kwargs) -> ServiceResponse | None:
+        service: Callable = cls.MOCKED_SERVICES[domain, action]
+        return service(domain, action, **kwargs)
 
     def mocked_service_call(
         self,
@@ -80,20 +95,26 @@ class DummyService:
         target=None,
         return_response: bool | None = None,
     ) -> ServiceResponse | None:
-        return_response = False if return_response is None else return_response
-        service_data = service_data or {}
+        return_response = (
+            False if return_response is None or self.supports_response == SupportsResponse.NONE else return_response
+        )
+        service_data = dict(service_data) if service_data else {}
         service_data.update(target or {})
         if self.hass is not None:
             self.calls.append(ServiceCall(self.hass, domain, service, service_data, context, return_response))
         if self.exception:
             raise self.exception
-        return self.response
+        if return_response:
+            return self.response
+        return None
 
     def service_call(self, call: ServiceCall) -> ServiceResponse | None:
         self.calls.append(call)
         if self.exception:
             raise self.exception
-        return self.response
+        if self.supports_response != SupportsResponse.NONE:
+            return self.response
+        return None
 
 
 class DummyTransport(Transport):

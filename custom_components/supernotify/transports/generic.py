@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.notify import DOMAIN as NOTIFY_DOMAIN
-from homeassistant.components.notify.const import ATTR_DATA, ATTR_MESSAGE, ATTR_TARGET
+from homeassistant.components.notify.const import ATTR_DATA, ATTR_MESSAGE, ATTR_TARGET, ATTR_TITLE
 
 # ATTR_VARIABLES from script.const has import issues
 from homeassistant.const import ATTR_ENTITY_ID
@@ -11,6 +11,8 @@ from homeassistant.const import ATTR_ENTITY_ID
 from custom_components.supernotify.common import ensure_list
 from custom_components.supernotify.const import (
     ATTR_ACTION_URL,
+    ATTR_ACTIONS,
+    ATTR_MEDIA,
     ATTR_MEDIA_SNAPSHOT_URL,
     ATTR_PRIORITY,
     OPTION_DATA_KEYS_SELECT,
@@ -20,8 +22,12 @@ from custom_components.supernotify.const import (
     OPTION_SIMPLIFY_TEXT,
     OPTION_STRIP_URLS,
     OPTION_TARGET_CATEGORIES,
+    PRIORITY_CRITICAL,
+    PRIORITY_HIGH,
+    PRIORITY_LOW,
+    PRIORITY_MEDIUM,
+    PRIORITY_MINIMUM,
     PRIORITY_VALUES,
-    SELECT_INCLUDE,
     TRANSPORT_GENERIC,
 )
 from custom_components.supernotify.model import (
@@ -40,9 +46,13 @@ from custom_components.supernotify.transport import (
 if TYPE_CHECKING:
     from custom_components.supernotify.delivery import Delivery
     from custom_components.supernotify.envelope import Envelope
+    from custom_components.supernotify.hass_api import HomeAssistantAPI
 
 _LOGGER = logging.getLogger(__name__)
-DATA_FIELDS_ALLOWED = {
+"""
+Replaced by reuse of original service schema to prune out fields
+
+DATA_FIELDS_ALLOWED_BY_DOMAIN = {
     "light": [
         "transition",
         "rgb_color",
@@ -65,9 +75,25 @@ DATA_FIELDS_ALLOWED = {
     "siren": ["tone", "duration", "volume_level"],
     "mqtt": ["topic", "payload", "evaluate_payload", "qos", "retain"],
     "script": ["variables", "wait", "wait_template"],
-    "ntfy": ["title", "message", "markdown", "tags", "priority", "click", "delay", "attach", "email", "call", "icon"],
+    "ntfy": [
+        "title",
+        "message",
+        "markdown",
+        "tags",
+        "priority",
+        "click",
+        "delay",
+        "attach",
+        "attach_file",
+        "filename",
+        "email",
+        "call",
+        "icon",
+        "action",
+        "sequence_id",
+    ],
     "tts": ["cache", "options", "message", "language", "media_player_entity_id", "entity_id", "target"],
-}
+} """
 
 
 class GenericTransport(Transport):
@@ -108,7 +134,12 @@ class GenericTransport(Transport):
         core_action_data: dict[str, Any] = envelope.core_action_data(force_message=False)
         raw_mode: bool = envelope.delivery.options.get(OPTION_RAW, False)
         qualified_action: str | None = envelope.delivery.action
-        domain: str | None = qualified_action.split(".", 1)[0] if qualified_action and "." in qualified_action else None
+        split_action = (
+            qualified_action.split(".", 1) if qualified_action and "." in qualified_action else [None, qualified_action]
+        )
+        domain: str | None = split_action[0]
+        service: str | None = split_action[1]
+
         equiv_domain: str | None = domain
         if envelope.delivery.options.get(OPTION_GENERIC_DOMAIN_STYLE):
             equiv_domain = envelope.delivery.options.get(OPTION_GENERIC_DOMAIN_STYLE)
@@ -119,7 +150,7 @@ class GenericTransport(Transport):
         target_data: dict[str, Any] | None = {}
         build_targets: bool = False
         prune_data: bool = True
-        mini_envelopes: list[MiniEnvelope] = []
+        mini_envelopes: list[MiniEnvelope] = []  # only used for script and ntfy
 
         if raw_mode:
             action_data = core_action_data
@@ -153,15 +184,19 @@ class GenericTransport(Transport):
             action_data = core_action_data
             action_data.update(data)
             build_targets = True
+        elif equiv_domain == "notify_events":
+            mini_envelopes.extend(notify_events(envelope.message, envelope.title, core_action_data, data, envelope.delivery))
         elif qualified_action == "ntfy.publish":
-            mini_envelopes.extend(ntfy(qualified_action, core_action_data, data, envelope.target, envelope.delivery))
+            mini_envelopes.extend(ntfy(core_action_data, data, envelope.target, envelope.delivery, self.hass_api))
         elif equiv_domain in ("siren", "light"):
             target_data = {ATTR_ENTITY_ID: envelope.target.domain_entity_ids(domain)}
             action_data = data
         elif equiv_domain == "rest_command":
             action_data = data
         elif equiv_domain == "script":
-            mini_envelopes.extend(script(qualified_action, core_action_data, data, envelope.target, envelope.delivery))
+            mini_envelopes.extend(
+                script(qualified_action, core_action_data, data, envelope.target, envelope.delivery, self.hass_api)
+            )
         else:
             action_data = core_action_data
             action_data.update(data)
@@ -189,30 +224,31 @@ class GenericTransport(Transport):
                 action_data[ATTR_TARGET] = all_targets
 
         if prune_data and action_data:
-            action_data = customize_data(action_data, domain if not raw_mode else None, envelope.delivery)
+            action_data = customize_data(action_data, envelope.delivery)
+        if not raw_mode and domain and service:
+            # use the service schema to remove unsupported fields or force type
+            action_data = self.context.hass_api.coerce_schema(domain, service, action_data)
 
         return await self.call_action(envelope, qualified_action, action_data=action_data, target_data=target_data or None)
 
 
-def customize_data(data: dict[str, Any], domain: str | None, delivery: Delivery) -> dict[str, Any]:
+def customize_data(data: dict[str, Any], delivery: Delivery) -> dict[str, Any]:
     if not data:
         return data
+    top_selection_rule: SelectionRule | None = None
     if delivery.options.get(OPTION_DATA_KEYS_SELECT):
-        selection_rule: SelectionRule | None = SelectionRule(delivery.options.get(OPTION_DATA_KEYS_SELECT))
+        top_selection_rule = SelectionRule(delivery.options.get(OPTION_DATA_KEYS_SELECT))
+    if top_selection_rule is None:
+        pruned: dict[str, Any] = data
     else:
-        selection_rule = None
-
-    if selection_rule is None and domain and domain in DATA_FIELDS_ALLOWED:
-        selection_rule = SelectionRule({SELECT_INCLUDE: DATA_FIELDS_ALLOWED[domain]})
-
-    if selection_rule is None and ATTR_DATA not in data:
-        return data
-    pruned: dict[str, Any] = {}
-    for key in data:
-        if selection_rule is None or selection_rule.match(key):
-            pruned[key] = data[key]
+        pruned = {}
+        for key in data:
+            if top_selection_rule is None or top_selection_rule.match(key):
+                pruned[key] = data[key]
     if ATTR_DATA in pruned and not pruned[ATTR_DATA]:
+        # tidy up empty nested `data` maps
         del pruned[ATTR_DATA]
+
     return pruned
 
 
@@ -223,7 +259,12 @@ class MiniEnvelope:
 
 
 def script(
-    qualified_action: str | None, core_action_data: dict[str, Any], data: dict[str, Any], target: Target, delivery: Delivery
+    qualified_action: str | None,
+    core_action_data: dict[str, Any],
+    data: dict[str, Any],
+    target: Target,
+    delivery: Delivery,
+    hass_api: HomeAssistantAPI,
 ) -> list[MiniEnvelope]:
     """Customize `data` for script integration"""
     results: list[MiniEnvelope] = []
@@ -233,7 +274,8 @@ def script(
         if "variables" in data:
             action_data["variables"].update(data.pop("variables"))
         action_data["variables"].update(data)
-        customize_data(action_data, "script", delivery)
+        customize_data(action_data, delivery)
+        action_data = hass_api.coerce_schema("script", qualified_action.replace("script.", ""), action_data)
         results.append(MiniEnvelope(action_data=action_data, target_data={ATTR_ENTITY_ID: target.domain_entity_ids("script")}))
     else:
         action_data = core_action_data
@@ -244,25 +286,30 @@ def script(
 
 
 def ntfy(
-    qualified_action: str | None,  # noqa: ARG001
     core_action_data: dict[str, Any],
     data: dict[str, Any],
     target: Target,
     delivery: Delivery,
+    hass_api: HomeAssistantAPI,
 ) -> list[MiniEnvelope]:
     """Customize `data` for ntfy integration"""
     results: list[MiniEnvelope] = []
     action_data: dict[str, Any] = dict(core_action_data)
     action_data.update(data)
-    customize_data(action_data, "ntfy", delivery)
+    customize_data(action_data, delivery)
+    action_data = hass_api.coerce_schema("ntfy", "publish", action_data)
 
     if ATTR_PRIORITY in action_data and action_data[ATTR_PRIORITY] in PRIORITY_VALUES:
         action_data[ATTR_PRIORITY] = PRIORITY_VALUES.get(action_data[ATTR_PRIORITY], 3)
 
-    if action_data.get(ATTR_MEDIA_SNAPSHOT_URL) and "attach" not in action_data:
-        action_data["attach"] = action_data.get(ATTR_MEDIA_SNAPSHOT_URL)
-    if action_data.get(ATTR_ACTION_URL) and "click" not in action_data:
-        action_data["click"] = action_data.get(ATTR_ACTION_URL)
+    media = action_data.pop(ATTR_MEDIA, {})
+    if media and media.get(ATTR_MEDIA_SNAPSHOT_URL) and "attach" not in action_data:
+        action_data["attach"] = media.get(ATTR_MEDIA_SNAPSHOT_URL)
+    actions = action_data.pop(ATTR_ACTIONS, [])
+    if len(actions) > 0:
+        first_action = actions[0]
+        if first_action.get(ATTR_ACTION_URL) and "click" not in action_data:
+            action_data["click"] = first_action.get(ATTR_ACTION_URL)
 
     if target.email and "email" not in action_data:
         for email in target.email:
@@ -286,5 +333,58 @@ def ntfy(
             results[0].target_data = {"entity_id": notify_entities}
         else:
             results.append(MiniEnvelope(action_data=dict(action_data), target_data={"entity_id": notify_entities}))
+
+    return results
+
+
+def notify_events(
+    message: str | None,
+    title: str | None,
+    core_action_data: dict[str, Any],
+    data: dict[str, Any],
+    delivery: Delivery,
+) -> list[MiniEnvelope]:
+    """Customize `data` for notify_events integration"""
+    results: list[MiniEnvelope] = []
+    input_data: dict[str, Any] = dict(core_action_data)
+    input_data.update(data)
+    customize_data(input_data, delivery)
+    action_data: dict[str, Any] = {}
+    action_data[ATTR_MESSAGE] = message
+    priority_mapping: dict[str, str] = {
+        PRIORITY_MINIMUM: "lowest",
+        PRIORITY_LOW: "low",
+        PRIORITY_MEDIUM: "normal",
+        PRIORITY_HIGH: "high",
+        PRIORITY_CRITICAL: "highest",
+    }
+    if title:
+        action_data.setdefault(ATTR_DATA, {})
+        action_data[ATTR_DATA][ATTR_TITLE] = title
+
+    if ATTR_DATA in input_data:
+        # notify_events is schema-less for action
+        action_data[ATTR_DATA] = input_data[ATTR_DATA]
+
+    if ATTR_PRIORITY in input_data and input_data[ATTR_PRIORITY] in PRIORITY_VALUES:
+        action_data.setdefault(ATTR_DATA, {})
+        action_data[ATTR_DATA][ATTR_PRIORITY] = priority_mapping.get(input_data[ATTR_PRIORITY])
+    elif ATTR_PRIORITY in input_data and input_data[ATTR_PRIORITY] in priority_mapping.values():
+        action_data.setdefault(ATTR_DATA, {})
+        action_data[ATTR_DATA][ATTR_PRIORITY] = input_data[ATTR_PRIORITY]
+
+    if "token" in input_data:
+        action_data.setdefault(ATTR_DATA, {})
+        action_data[ATTR_DATA]["token"] = input_data["token"]
+    if "level" in input_data:
+        action_data.setdefault(ATTR_DATA, {})
+        action_data[ATTR_DATA]["level"] = input_data["level"]
+
+    if input_data.get(ATTR_MEDIA, {}).get(ATTR_MEDIA_SNAPSHOT_URL) and "images" not in input_data:
+        action_data.setdefault(ATTR_DATA, {})
+        action_data[ATTR_DATA].setdefault("images", [])
+        action_data[ATTR_DATA]["images"].append({"url": input_data.get(ATTR_MEDIA, {}).get(ATTR_MEDIA_SNAPSHOT_URL)})
+
+    results.append(MiniEnvelope(action_data=dict(action_data)))
 
     return results

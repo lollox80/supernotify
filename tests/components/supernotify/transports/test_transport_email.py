@@ -80,8 +80,8 @@ async def test_deliver_with_template(hass: HomeAssistant) -> None:
         )
     )
     await ctx.hass.async_block_till_done()
-    assert len(ctx.services["notify.smtp"].calls) == 1
-    service_call: ServiceCall = ctx.services["notify.smtp"].calls[0]
+    assert len(ctx.services["notify"]["smtp"].calls) == 1
+    service_call: ServiceCall = ctx.services["notify"]["smtp"].calls[0]
     assert service_call.data == {
         "target": ["tester9@assert.com"],
         "title": "testing",
@@ -174,24 +174,27 @@ async def test_deliver_with_preformatted_html_and_image() -> None:
 async def test_discover_smtp_integration(hass: HomeAssistant) -> None:
     ctx = TestingContext(homeassistant=hass)
 
-    with patch("homeassistant.components.smtp.notify.MailNotificationService.connection_is_valid"):
-        assert await async_setup_component(
-            hass,
-            "notify",
+    config = {
+        "notify_events": {"token": "ABC"},
+        "notify": [
             {
-                "notify": [
-                    {
-                        "name": "mailservice",
-                        "platform": "smtp",
-                        "server": "localhost",
-                        "encryption": "none",
-                        "sender": "hass@localhost.org",
-                        "recipient": ["tester@localhost.org"],
-                    }
-                ]
+                "name": "mailservice",
+                "platform": "smtp",
+                "server": "localhost",
+                "encryption": "none",
+                "sender": "hass@localhost.org",
+                "recipient": ["tester@localhost.org"],
             },
-        )
+            {"name": "eventer", "platform": "notify_events"},
+        ],
+    }
+    assert await async_setup_component(hass, "notify_events", config)
+
+    with patch("homeassistant.components.smtp.notify.MailNotificationService.connection_is_valid"):
+        assert await async_setup_component(hass, "notify", config)
         await hass.async_block_till_done()
+
+    await hass.async_block_till_done()
 
     await ctx.test_initialize()
     assert "DEFAULT_email" in ctx.delivery_registry.deliveries
@@ -352,8 +355,8 @@ async def test_deliver_with_template_and_image_path(hass: HomeAssistant, tmp_pat
         )
     )
     await ctx.hass.async_block_till_done()
-    assert len(ctx.services["notify.smtp"].calls) == 1
-    call_data = ctx.services["notify.smtp"].calls[0].data
+    assert len(ctx.services["notify"]["smtp"].calls) == 1
+    call_data = ctx.services["notify"]["smtp"].calls[0].data
     assert "data" in call_data
     assert call_data["data"]["html"]
 

@@ -54,13 +54,17 @@ dev=[
     "ruff",
     "mypy",
     "genbadge[all]",
+    # generic transport testing
+    "notify-events",
+    "aiontfy==0.8.1",
+
 
     # home assistant tts testing
     "mutagen",
     "ha-ffmpeg",
 
-    # home assistant mobile push testing
-    # "PyTurboJPEG==1.8.0"
+    # home assistant mobile push testing, and ntfy
+    "PyTurboJPEG==1.8.0"
 ]
 docs=[
     "mkdocs-material[imaging]",

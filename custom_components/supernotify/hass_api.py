@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
 from homeassistant.components.person import ATTR_USER_ID
 from homeassistant.const import CONF_ACTION, CONF_DEVICE_ID
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -236,19 +237,64 @@ class HomeAssistantAPI:
             _LOGGER.info("SUPERNOTIFY Service %s.%s response: %s", domain, service, response)
         return response
 
-    def service_info(self, domain: str, service: str) -> SupportsResponse:
-
+    def coerce_schema(self, domain: str, service: str, data: ConfigType) -> ConfigType:
+        if not data:
+            return data
         try:
             if (domain, service) not in self._service_info:
-                service_objs: dict[str, dict[str, Service]] = self._hass.services.async_services()
-                service_obj: Service | None = service_objs.get(domain, {}).get(service)
+                self.service_info(domain, service)
+            service_info = self._service_info.get((domain, service))
+            if not service_info:
+                _LOGGER.info("SUPERNOTIFY No service found to pre-validate action data for %s.%s", domain, service)
+                return data
+            if not service_info.get("schema"):
+                _LOGGER.info("SUPERNOTIFY No vol schema found to pre-validate action data for %s.%s", domain, service)
+                return data
+            service_schema = service_info["schema"]
+
+            while service_schema is not None and not isinstance(service_schema, vol.Schema):
+                # e.g. entity services get schema wrapped in an vol.All
+                if hasattr(service_schema, "validators") and hasattr(service_schema.validators, "__iter__"):
+                    # e.g. vol.All — strip extras using first dict Schema sub-validator only
+                    # (don't run the full chain; other validators may require target fields not in data)
+                    service_schema = next(
+                        (v for v in service_schema.validators if isinstance(v, vol.Schema) or hasattr(v, "validators")), None
+                    )
+                else:
+                    service_schema = None
+            if not isinstance(service_schema, vol.Schema):
+                service_schema = None
+                _LOGGER.info("SUPERNOTIFY Unable to find schema for %s.%s", domain, service)
+
+            if service_schema:
+                coercing_schema = service_schema.extend(
+                    {},
+                    extra=vol.REMOVE_EXTRA if service_schema.extra == vol.PREVENT_EXTRA else service_schema.extra,
+                    required=service_schema.required,
+                )
+                cleaned = coercing_schema(data)
+            else:
+                return data
+            if cleaned != data:
+                _LOGGER.debug("SUPERNOTIFY Coerced data for %s.%s from %s->%s", domain, service, data, cleaned)
+            return cleaned
+        except Exception:
+            _LOGGER.exception("SUPERNOTIFY Unable to coerce %s.%s schema for %s", domain, service, data)
+            return data
+
+    def service_info(self, domain: str, service: str) -> SupportsResponse:
+        supports_response: SupportsResponse | None = None
+        try:
+            if (domain, service) not in self._service_info:
+                service_objs: dict[str, Service] = self._hass.services.async_services_for_domain(domain)
+                service_obj: Service | None = service_objs.get(service)
                 if service_obj:
                     self._service_info[domain, service] = {
                         "supports_response": service_obj.supports_response,
                         "schema": service_obj.schema,
                     }
             service_info: dict[str, Any] = self._service_info.get((domain, service), {})
-            supports_response: SupportsResponse | None = service_info.get("supports_response")
+            supports_response = service_info.get("supports_response")
             if supports_response is None:
                 _LOGGER.debug("SUPERNOTIFY Unable to find service info for %s.%s", domain, service)
 
@@ -258,9 +304,9 @@ class HomeAssistantAPI:
 
     def find_service(self, domain: str, module: str) -> str | None:
         try:
-            service_objs: dict[str, dict[str, Service]] = self._hass.services.async_services()
+            service_objs: dict[str, Service] = self._hass.services.async_services_for_domain(domain)
             if service_objs:
-                for service, domain_obj in service_objs.get(domain, {}).items():
+                for service, domain_obj in service_objs.items():
                     if domain_obj.job and domain_obj.job.target:
                         target_module: str | None = (
                             domain_obj.job.target.__self__.__module__

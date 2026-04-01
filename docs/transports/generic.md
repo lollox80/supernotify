@@ -14,6 +14,7 @@ tags:
   - switch
   - notify
   - custom
+  - notify_events
 ---
 # Generic Transport Adaptor
 
@@ -115,11 +116,15 @@ notifications without worrying too much about the variety of `data` mappings etc
 | siren                         | All [permitted](https://www.home-assistant.io/integrations/siren/#action-sirenturn_on) `data` elements                                                      | `entity_id` map         |
 | light                         | All [permitted](https://www.home-assistant.io/integrations/light/#action-lightturn_on) `data` elements                                                      | `entity_id` map         |
 | rest_command | All of `data | Empty |
+| notify_events | All [permitted](https://www.home-assistant.io/integrations/notify_events#message-optional-parameters) `data` elements | Empty |
 | ntfy (`ntfy.publish`) | All [permitted](https://www.home-assistant.io/integrations/ntfy/#publish-notification) `data` elements. `snapshot_url` will be used for `image` and `action_url` for `click`. `email` and/or `call` set for targets | Use `notify` domain targets |
 | script (`turn_on` and `turn_off` only) | `variables` contains a mapping of `message`,`title` plus any `variables` items in `data`. Other `data` elements added in their own right  | `entity_id` map |
 | script (script name as action) | `message` and `title` plus all `data` elements | `entity_id` map |
 | tts | All [permitted](https://www.home-assistant.io/integrations/tts/) data elements | `entity_id` map |
 | *default* |  `message` and `title` plus all `data` elements | big list of all targets |
+
+!!! tip "Notify Events"
+  `notify_events` has no definite action call in Home Assistant, so use `handle_as_domain: notify_event` in the `option` section of the *Delivery* configuration to switch on the special processing in Generic Transport, otherwise the same `data` section will be passed on as received in the action.
 
 ### Input Text Integration
 

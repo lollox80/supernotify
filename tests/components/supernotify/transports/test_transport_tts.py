@@ -39,7 +39,6 @@ async def test_transport_tts() -> None:
             "cache": False,
             "options": {"preferred_format": "wav"},
             "media_player_entity_id": "media_player.kitchen_speakers",
-            "entity_id": "tts.home_assistant_cloud",
         },
         blocking=False,
         context=None,
@@ -66,11 +65,7 @@ async def test_transport_spoken_msg_override() -> None:
     ctx.hass.services.async_call.assert_called_with(  # type: ignore
         "tts",
         "speak",
-        service_data={
-            "message": "yoo hoo",
-            "media_player_entity_id": "media_player.kitchen_speakers",
-            "entity_id": "tts.home_assistant_cloud",
-        },
+        service_data={"message": "yoo hoo", "media_player_entity_id": "media_player.kitchen_speakers"},
         blocking=False,
         context=None,
         target={"entity_id": "tts.home_assistant_cloud"},
@@ -98,11 +93,7 @@ async def test_override_to_legacy_action() -> None:
     ctx.hass.services.async_call.assert_called_with(  # type: ignore
         "tts",
         "say",
-        service_data={
-            "message": "testing 123",
-            "media_player_entity_id": "media_player.kitchen_speakers",
-            "entity_id": "tts.home_assistant_cloud",
-        },
+        service_data={"message": "testing 123", "media_player_entity_id": "media_player.kitchen_speakers"},
         blocking=False,
         context=None,
         target={"entity_id": "tts.home_assistant_cloud"},
@@ -126,7 +117,6 @@ async def test_alt_tts_provider() -> None:
         service_data={
             "message": "testing 123",
             "media_player_entity_id": "media_player.kitchen_speakers",
-            "entity_id": "tts.google_ai_tts",
         },
         blocking=False,
         context=None,
@@ -171,7 +161,6 @@ async def test_multiple_media_player_targets() -> None:
         service_data={
             "message": "testing 123",
             "media_player_entity_id": ["media_player.kitchen_speakers", "media_player.living_room"],
-            "entity_id": "tts.home_assistant_cloud",
         },
         blocking=False,
         context=None,
@@ -193,12 +182,7 @@ async def test_tts_with_language_option() -> None:
     ctx.hass.services.async_call.assert_called_with(  # type: ignore
         "tts",
         "speak",
-        service_data={
-            "message": "testing 123",
-            "language": "fr-FR",
-            "media_player_entity_id": "media_player.kitchen_speakers",
-            "entity_id": "tts.home_assistant_cloud",
-        },
+        service_data={"message": "testing 123", "language": "fr-FR", "media_player_entity_id": "media_player.kitchen_speakers"},
         blocking=False,
         context=None,
         target={"entity_id": "tts.home_assistant_cloud"},

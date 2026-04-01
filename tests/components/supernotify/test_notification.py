@@ -302,7 +302,7 @@ async def test_select_recipient_deliveries() -> None:
             },
         ],
         deliveries={"chatty": {CONF_TRANSPORT: "email", CONF_ACTION: "notify.smtp", CONF_SELECTION: ["explicit"]}},
-        services={"notify": ["smtp"], "mobile_app": ["kidphone", "joephone"]},
+        services={"notify": ["smtp", "mobile_app_kidphone", "mobile_app_joephone"]},
     )
     await ctx.test_initialize()
 

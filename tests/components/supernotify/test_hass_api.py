@@ -4,9 +4,11 @@ from typing import TYPE_CHECKING
 import pytest
 from homeassistant.exceptions import HomeAssistantError, ServiceNotFound
 from homeassistant.helpers import config_validation as cv
+from homeassistant.setup import async_setup_component
 
 from custom_components.supernotify.hass_api import HomeAssistantAPI
 from custom_components.supernotify.model import ConditionVariables, SelectionRule
+from tests.components.supernotify.hass_setup_lib import TestingContext
 
 from .hass_setup_lib import register_device
 
@@ -238,6 +240,54 @@ def test_finds_service(hass: HomeAssistant) -> None:
     assert hass_api.find_service("bar", "supernotify.test_hass_api") is None
     assert hass_api.find_service("foo", "supernotify.test_hass_api") == "foo.bar"
     assert hass_api.find_service("foo2", "supernotify.test_hass_api") == "foo2.clz"
+
+
+async def test_coerce_schema_does_nothing_for_unknown_service(hass) -> None:
+    ctx = TestingContext(homeassistant=hass)
+    await ctx.test_initialize()
+    data = {"m": 123, "data": {"bob": "joe"}}
+    assert ctx.hass_api.coerce_schema("foo", "bar", data) == data
+
+
+async def test_coerce_schema_cleans_up_notify_entity_action(hass) -> None:
+    ctx = TestingContext(homeassistant=hass)
+    assert await async_setup_component(hass, "notify", {})
+    await hass.async_block_till_done()
+    await ctx.test_initialize()
+
+    data = {"message": 123, "data": {"bob": "joe"}, "funky": True}
+    cleaned = ctx.hass_api.coerce_schema("notify", "send_message", data)
+    assert cleaned["message"] == "123"
+    assert "data" not in cleaned
+    assert "funky" not in cleaned
+
+
+async def test_coerce_schema_cleans_up_legacy_action(hass) -> None:
+    ctx = TestingContext(homeassistant=hass)
+    config = {"notify_events": {"token": "ABC"}, "notify": [{"name": "eventer", "platform": "notify_events"}]}
+    assert await async_setup_component(hass, "notify_events", config)
+
+    await hass.async_block_till_done()
+    await ctx.test_initialize()
+
+    data = {"message": 123, "data": {"bob": "joe"}, "funky": True}
+    cleaned = ctx.hass_api.coerce_schema("notify", "eventer", data)
+    assert cleaned["message"] == "123"
+    assert cleaned["data"] == {"bob": "joe"}
+    assert "funky" not in cleaned
+
+
+async def test_coerce_schema_cleans_up_non_notify_action(hass) -> None:
+    ctx = TestingContext(homeassistant=hass)
+    assert await async_setup_component(hass, "siren", {"siren": {"platform": "demo"}})
+    await hass.async_block_till_done()
+    await ctx.test_initialize()
+
+    data = {"duration": 1.0, "foo": 123, "funky": True}
+    cleaned = ctx.hass_api.coerce_schema("siren", "turn_on", data)
+    assert cleaned["duration"] == pytest.approx(1.0, rel=0.01)
+    assert "funky" not in cleaned
+    assert "foo" not in cleaned
 
 
 async def test_mqtt_publish(mock_hass) -> None:

@@ -4,6 +4,7 @@ import uuid
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, cast
 
+import homeassistant.util.dt as dt_util
 import voluptuous as vol
 from homeassistant.components.notify.const import ATTR_DATA
 from voluptuous import humanize
@@ -86,7 +87,7 @@ class Notification(ArchivableObject):
         target: list[str] | str | None = None,
         action_data: dict[str, Any] | None = None,
     ) -> None:
-        self.created: dt.datetime = dt.datetime.now(tz=dt.UTC)
+        self.created: dt.datetime = dt.datetime.now(tz=dt_util.get_default_time_zone())
         self.debug_trace: DebugTrace = DebugTrace(message=message, title=title, data=action_data, target=target)
         self.message: str | None = message
         self.context: Context = context
