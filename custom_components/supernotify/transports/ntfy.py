@@ -47,10 +47,10 @@ _LOGGER = logging.getLogger(__name__)
 
 _PRIORITY_MAP = {
     "critical": 5,  # urgent/max
-    "high":     4,  # high
-    "medium":   3,  # default
-    "low":      2,  # low
-    "minimum":  1,  # min
+    "high": 4,  # high
+    "medium": 3,  # default
+    "low": 2,  # low
+    "minimum": 1,  # min
 }
 
 _DELAY_RE = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
@@ -89,7 +89,8 @@ def _validate_actions(actions: list) -> list:
             missing = _REQUIRED_ACTION_KEYS - set(a) if isinstance(a, dict) else _REQUIRED_ACTION_KEYS
             _LOGGER.warning(
                 "SUPERNOTIFY ntfy: action[%d] missing required keys %s, skipped",
-                i, missing,
+                i,
+                missing,
             )
             continue
         valid.append(a)
@@ -98,16 +99,12 @@ def _validate_actions(actions: list) -> list:
 
 class NtfyTransport(Transport):
     """Notify via ntfy push notification service."""
+
     name = TRANSPORT_NTFY
 
     @property
     def supported_features(self) -> TransportFeature:
-        return (
-            TransportFeature.MESSAGE
-            | TransportFeature.TITLE
-            | TransportFeature.IMAGES
-            | TransportFeature.ACTIONS
-        )
+        return TransportFeature.MESSAGE | TransportFeature.TITLE | TransportFeature.IMAGES | TransportFeature.ACTIONS
 
     @property
     def default_config(self) -> TransportConfig:
@@ -121,18 +118,18 @@ class NtfyTransport(Transport):
 
         raw_data: dict[str, Any] = dict(envelope.data) if envelope.data else {}
 
-        device_id    = raw_data.pop("ntfy_device_id", None)
+        device_id = raw_data.pop("ntfy_device_id", None)
         priority_ovr = raw_data.pop("ntfy_priority", None)
-        tags         = raw_data.pop("ntfy_tags", [])
-        click_url    = raw_data.pop("ntfy_click", None)
+        tags = raw_data.pop("ntfy_tags", [])
+        click_url = raw_data.pop("ntfy_click", None)
         attach_image = boolify(raw_data.pop("ntfy_attach_image", False), default=False)
-        filename     = raw_data.pop("ntfy_filename", "snapshot.jpg")
-        icon         = raw_data.pop("ntfy_icon", None)
-        markdown     = boolify(raw_data.pop("ntfy_markdown", False), default=False)
-        delay        = raw_data.pop("ntfy_delay", None)
-        sequence_id  = raw_data.pop("ntfy_sequence_id", None)
-        email        = raw_data.pop("ntfy_email", None)
-        actions      = raw_data.pop("ntfy_actions", [])
+        filename = raw_data.pop("ntfy_filename", "snapshot.jpg")
+        icon = raw_data.pop("ntfy_icon", None)
+        markdown = boolify(raw_data.pop("ntfy_markdown", False), default=False)
+        delay = raw_data.pop("ntfy_delay", None)
+        sequence_id = raw_data.pop("ntfy_sequence_id", None)
+        email = raw_data.pop("ntfy_email", None)
+        actions = raw_data.pop("ntfy_actions", [])
 
         if not device_id:
             _LOGGER.warning("SUPERNOTIFY ntfy: ntfy_device_id not configured in delivery data")
@@ -143,11 +140,9 @@ class NtfyTransport(Transport):
             try:
                 priority_ovr = int(priority_ovr)
                 if not 1 <= priority_ovr <= 5:
-                    _LOGGER.warning(
-                        "SUPERNOTIFY ntfy: ntfy_priority %s out of range 1-5, using mapping", priority_ovr
-                    )
+                    _LOGGER.warning("SUPERNOTIFY ntfy: ntfy_priority %s out of range 1-5, using mapping", priority_ovr)
                     priority_ovr = None
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 _LOGGER.warning("SUPERNOTIFY ntfy: invalid ntfy_priority %r, using mapping", priority_ovr)
                 priority_ovr = None
 
@@ -183,7 +178,8 @@ class NtfyTransport(Transport):
             if camera_entity_id:
                 try:
                     await self.hass_api.call_service(
-                        "camera", "snapshot",
+                        "camera",
+                        "snapshot",
                         service_data={
                             ATTR_ENTITY_ID: camera_entity_id,
                             "filename": _SNAPSHOT_PATH,

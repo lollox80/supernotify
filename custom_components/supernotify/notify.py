@@ -68,8 +68,8 @@ from .transports.generic import GenericTransport
 from .transports.media_player import MediaPlayerTransport
 from .transports.mobile_push import MobilePushTransport
 from .transports.mqtt import MQTTTransport
-from .transports.ntfy import NtfyTransport
 from .transports.notify_entity import NotifyEntityTransport
+from .transports.ntfy import NtfyTransport
 from .transports.persistent import PersistentTransport
 from .transports.sms import SMSTransport
 from .transports.tts import TTSTransport
