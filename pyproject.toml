@@ -3,9 +3,9 @@ name = "supernotify"
 description = "Home Assistant custom component for advanced notifications"
 readme = "README.md"
 dynamic = ["version"]
-requires-python = ">=3.13"
+requires-python = ">=3.13.2"
 dependencies = [
-    "homeassistant>=2026.3.2",
+    "homeassistant>=2026.2",
     "cachetools",
     "bs4",
     "aiofiles",
@@ -36,11 +36,11 @@ namespaces = true # to disable scanning PEP 420 namespaces (true by default)
 
 [dependency-groups]
 dev=[
-    "homeassistant-stubs >= 2026.3.2",
+    "homeassistant-stubs",
     "pytest",
     "pytest-cov",
     "pytest-socket",
-    "pytest-homeassistant-custom-component>=0.13.318",
+    "pytest-homeassistant-custom-component",
     "pytest-asyncio",
     "pytest-aiohttp",
     "pytest-unordered",
