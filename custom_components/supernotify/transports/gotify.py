@@ -23,9 +23,9 @@ Supported data: keys (all optional):
     gotify_click        str (URL)   URL opened on tap of the notification.
     gotify_image_url    str (URL)   Direct URL for bigImageUrl (expanded image).
                                     Takes precedence over gotify_attach_image.
-    gotify_attach_image bool        Auto-snap camera and use as bigImageUrl.
-                                    Requires envelope.media.camera_entity_id or
-                                    envelope.media.snapshot_url.
+    gotify_attach_image bool        Grab image via shared pipeline and use as bigImageUrl.
+                                    Used only when no snapshot_url is already in media.
+                                    Requires media_path under /config/www/ to be URL-accessible.
     gotify_markdown     bool        Enable Markdown rendering (text/markdown).
                                     Accepts "true"/"false" YAML strings safely.
     gotify_intent_url   str (URL)   Android intent URL on message receive.
@@ -39,11 +39,10 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.notify.const import ATTR_DATA
-from homeassistant.const import ATTR_ENTITY_ID
 
 from custom_components.supernotify.common import boolify
 from custom_components.supernotify.const import (
-    ATTR_MEDIA_CAMERA_ENTITY_ID,
+    ATTR_MEDIA_SNAPSHOT_URL,
     TRANSPORT_GOTIFY,
 )
 from custom_components.supernotify.model import (
@@ -55,6 +54,8 @@ from custom_components.supernotify.model import (
 from custom_components.supernotify.transport import Transport
 
 if TYPE_CHECKING:
+    from anyio import Path
+
     from custom_components.supernotify.envelope import Envelope
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,9 +67,6 @@ _PRIORITY_MAP: dict[str, int] = {
     "low": 2,
     "minimum": 0,
 }
-
-_SNAPSHOT_PATH = "/config/www/supernotify_gotify_snapshot.jpg"
-_SNAPSHOT_URL_PATH = "/local/supernotify_gotify_snapshot.jpg"
 
 
 def _build_extras(
@@ -102,9 +100,12 @@ class GotifyTransport(Transport):
 
     name = TRANSPORT_GOTIFY
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     @property
     def supported_features(self) -> TransportFeature:
-        return TransportFeature.MESSAGE | TransportFeature.TITLE | TransportFeature.IMAGES
+        return TransportFeature.MESSAGE | TransportFeature.TITLE | TransportFeature.IMAGES | TransportFeature.SNAPSHOT_IMAGE
 
     @property
     def default_config(self) -> TransportConfig:
@@ -121,6 +122,13 @@ class GotifyTransport(Transport):
             action,
         )
         return False
+
+    def _path_to_url(self, image_path: Path) -> str | None:
+        path_str = str(image_path)
+        idx = path_str.find("/config/www/")
+        if idx != -1:
+            return self.hass_api.abs_url("/local/" + path_str[idx + len("/config/www/") :])
+        return None
 
     async def deliver(self, envelope: Envelope, debug_trace: DebugTrace | None = None) -> bool:  # noqa: ARG002
         _LOGGER.debug("SUPERNOTIFY gotify %s", envelope.message)
@@ -158,34 +166,15 @@ class GotifyTransport(Transport):
         # --- Base action data ---
         action_data = envelope.core_action_data()
 
-        # --- Resolve image_url (bigImageUrl): explicit > camera snapshot > snapshot_url ---
-        if not image_url and attach_image and envelope.media:
-            camera_entity_id = envelope.media.get(ATTR_MEDIA_CAMERA_ENTITY_ID)
-            snapshot_url = envelope.media.get("snapshot_url")
-            if camera_entity_id:
-                try:
-                    await self.hass_api.call_service(
-                        "camera",
-                        "snapshot",
-                        service_data={
-                            ATTR_ENTITY_ID: camera_entity_id,
-                            "filename": _SNAPSHOT_PATH,
-                        },
-                    )
-                    image_url = self.hass_api.abs_url(_SNAPSHOT_URL_PATH)
-                    _LOGGER.debug(
-                        "SUPERNOTIFY gotify snapshot from %s -> %s",
-                        camera_entity_id,
-                        _SNAPSHOT_PATH,
-                    )
-                except Exception as e:
-                    _LOGGER.warning(
-                        "SUPERNOTIFY gotify: failed to snap camera %s: %s",
-                        camera_entity_id,
-                        e,
-                    )
-            elif snapshot_url:
+        # --- Resolve image_url (bigImageUrl): explicit > snapshot_url > grab_image ---
+        if not image_url and envelope.media:
+            snapshot_url = envelope.media.get(ATTR_MEDIA_SNAPSHOT_URL)
+            if snapshot_url:
                 image_url = self.hass_api.abs_url(snapshot_url)
+            elif attach_image:
+                image_path = await envelope.grab_image()
+                if image_path:
+                    image_url = self._path_to_url(image_path)
 
         # --- Build nested payload_data ---
         payload_data: dict[str, Any] = {"priority": gotify_priority}

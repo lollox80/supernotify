@@ -46,7 +46,7 @@ from .const import (
     TARGET_USE_ON_NO_DELIVERY_TARGETS,
 )
 from .envelope import Envelope
-from .media_grab import grab_image
+from .media_grab import snap_notification_image as _snap_notification_image
 from .model import (
     ConditionVariables,
     DebugTrace,
@@ -167,6 +167,7 @@ class Notification(ArchivableObject):
         self.enabled_scenarios: dict[str, Scenario] = {}
         self.selected_scenario_names: list[str] = []
         self._suppression_reason: SuppressionReason | None = None
+        self._raw_image_path: Any = None
         self._delivery_error: list[str] | None = None
         self.condition_variables: ConditionVariables
 
@@ -407,9 +408,7 @@ class Notification(ArchivableObject):
             # Start image grab immediately so PTZ runs while immediate deliveries execute
             image_task: asyncio.Task | None = None
             if deferred_deliveries:
-                first_delivery = self.context.delivery_registry.deliveries.get(next(iter(deferred_deliveries)))
-                if first_delivery:
-                    image_task = asyncio.create_task(grab_image(self, first_delivery, self.context))
+                image_task = asyncio.create_task(_snap_notification_image(self, self.context))
 
             _LOGGER.debug("SUPERNOTIFY Scheduling %s immediate deliveries", len(deferred_deliveries))
             await self._schedule_deliveries(immediate_deliveries)

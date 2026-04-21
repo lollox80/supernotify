@@ -315,7 +315,6 @@ class ChimeTransport(Transport):
 
         for chime_entity_config in expanded_targets.values():
             _LOGGER.debug("SUPERNOTIFY chime %s: %s", chime_entity_config.entity_id, chime_entity_config.tune)
-            action_data: dict[str, Any] | None = None
             try:
                 action_call: ActionCall | None = self.analyze_target(chime_entity_config, data, envelope)
                 if action_call is not None:

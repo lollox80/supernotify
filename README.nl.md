@@ -52,7 +52,7 @@ Er zijn veel [recepten](https://supernotify.rhizomatics.org.uk/recipes/) met voo
     * Mobiele apps worden automatisch gevonden, inclusief fabrikant en model van de telefoon
     * Alexa-apparaten voor geluidssignalen worden automatisch ontdekt
 * Verder dan `notify`-integraties
-    * Geluidssignalen, sirenes, sms, TTS, Alexa-aankondigingen en geluiden, API-aanroepen, MQTT-apparaten
+    * Geluidssignalen, sirenes, sms, TTS, Alexa-aankondigingen en geluiden, API-aanroepen, MQTT-apparaten, Gotify, ntfy
     * Alle standaard `notify`- en `notify.group`-implementaties beschikbaar
     * Sterk vereenvoudigd gebruik van mobiele pushmeldingen, bijv. voor iPhone
 * Voorwaardelijke meldingen

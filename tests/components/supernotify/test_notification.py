@@ -33,7 +33,7 @@ from custom_components.supernotify.const import (
 )
 from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.envelope import Envelope
-from custom_components.supernotify.media_grab import grab_image
+from custom_components.supernotify.media_grab import snap_notification_image
 from custom_components.supernotify.model import Target
 from custom_components.supernotify.notification import Notification
 from custom_components.supernotify.schema import SelectionRank
@@ -385,13 +385,13 @@ async def test_snapshot_url() -> None:
     await uut.initialize()
     original_image_path: Path = Path(tempfile.gettempdir()) / "image_a.jpg"
     with patch("custom_components.supernotify.media_grab.snapshot_from_url", return_value=original_image_path) as mock_snapshot:
-        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
-        assert retrieved_image_path == original_image_path
+        retrieved = await snap_notification_image(uut, uut.context)
+        assert retrieved == original_image_path
         assert mock_snapshot.called
         mock_snapshot.reset_mock()
-        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
-        assert retrieved_image_path == original_image_path
-        # notification caches image for multiple deliveries
+        # second call returns cached raw path without re-fetching the URL
+        retrieved2 = await snap_notification_image(uut, uut.context)
+        assert retrieved2 == original_image_path
         mock_snapshot.assert_not_called()
 
 
@@ -406,13 +406,13 @@ async def test_camera_entity() -> None:
     await uut.initialize()
     original_image_path: Path = Path(tempfile.gettempdir()) / "image_b.jpg"
     with patch("custom_components.supernotify.media_grab.snap_camera", return_value=original_image_path) as mock_snap_cam:
-        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
-        assert retrieved_image_path == original_image_path
+        retrieved = await snap_notification_image(uut, uut.context)
+        assert retrieved == original_image_path
         assert mock_snap_cam.called
         mock_snap_cam.reset_mock()
-        retrieved_image_path = await grab_image(uut, ctx.delivery("plain_email"), uut.context)
-        assert retrieved_image_path == original_image_path
-        # notification caches image for multiple deliveries
+        # second call returns cached raw path without re-snapping the camera
+        retrieved2 = await snap_notification_image(uut, uut.context)
+        assert retrieved2 == original_image_path
         mock_snap_cam.assert_not_called()
 
 

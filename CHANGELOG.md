@@ -5,6 +5,9 @@
 - Delivieries now use asyncio.gather to maximize parallelism
 - Deliveries needing snapshot images sequence after simple service calls
 - Camera PTZ call initiated at the start, so motion can complete in background while service calls happening
+### New Transports
+- [Gotify](https://gotify.net) contributed by [@lollox80](https://github.com/lollox80)
+- [Ntfy]() is now its own transport, (with older mechanism still available in Generic Transport), contributed by [@lollox80](https://github.com/lollox80)
 ### Bug fixes
 - Multiple bug fixes contributed by [@lollox80](https://github.com/lollox80)
 ## 1.13.0

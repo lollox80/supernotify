@@ -314,7 +314,7 @@ class HomeAssistantAPI:
                             else domain_obj.job.target.__module__
                         )
                         if target_module == module:
-                            _LOGGER.debug("SUPERNOTIFY Found service %s for domain %s", domain, service)
+                            _LOGGER.debug("SUPERNOTIFY Found service %s for domain %s", service, domain)
                             return f"{domain}.{service}"
 
             _LOGGER.debug("SUPERNOTIFY Unable to find service for %s", domain)

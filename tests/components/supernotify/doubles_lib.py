@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, call
 
+import aiofiles
 from homeassistant.components import image
 from homeassistant.core import (
     HomeAssistant,
@@ -18,9 +19,9 @@ from custom_components.supernotify.transport import Transport
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from pathlib import Path
 
     import voluptuous as vol
+    from anyio import Path
     from homeassistant.helpers.typing import ConfigType
 
     from custom_components.supernotify.context import Context
@@ -158,7 +159,11 @@ class MockImageEntity(image.ImageEntity):
     _attr_name = "Test"
 
     def __init__(self, filename: Path):
-        self.bytes = filename.open("rb").read()
+        self.filename = filename
+
+    async def load(self) -> None:
+        async with aiofiles.open(self.filename, "rb") as f:
+            self.bytes = await f.read()
 
     async def async_added_to_hass(self) -> None:
         self._attr_image_last_updated = dt_util.utcnow()

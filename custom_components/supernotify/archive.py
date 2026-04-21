@@ -2,12 +2,12 @@ import datetime as dt
 import json
 import logging
 from abc import abstractmethod
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import aiofiles.os
 import anyio
 import homeassistant.util.dt as dt_util
+from anyio import Path
 from homeassistant.const import (
     CONF_DEBUG,
     CONF_ENABLED,
@@ -159,7 +159,7 @@ class ArchiveDirectory(ArchiveDestination):
         self.purge_minute_interval: int = purge_minute_interval
 
     async def initialize(self) -> None:
-        verify_archive_path: anyio.Path = anyio.Path(self.configured_path)
+        verify_archive_path: Path = Path(self.configured_path)
         if verify_archive_path and not await verify_archive_path.exists():
             _LOGGER.info("SUPERNOTIFY archive path not found at %s", verify_archive_path)
             try:
@@ -181,7 +181,7 @@ class ArchiveDirectory(ArchiveDestination):
         archived: bool = False
 
         if self.enabled and self.archive_path:  # archive_path to assuage mypy
-            archive_filepath: anyio.Path | None = None
+            archive_filepath: Path | None = None
             diagnostics: bool = archive_object.selected(self.diagnostics)
             try:
                 filename = f"{archive_object.base_filename()}.json"
@@ -229,7 +229,7 @@ class ArchiveDirectory(ArchiveDestination):
                         continue
                     if dt_util.utc_from_timestamp(entry.stat().st_ctime) <= cutoff:
                         _LOGGER.debug("SUPERNOTIFY Purging %s", entry.path)
-                        await aiofiles.os.unlink(Path(entry.path))
+                        await aiofiles.os.unlink(entry.path)
                         purged += 1
             except Exception as e:
                 _LOGGER.warning("SUPERNOTIFY Unable to clean up archive at %s: %s", self.archive_path, e, exc_info=True)

@@ -1,8 +1,7 @@
-from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock, patch
 
-import anyio
+from anyio import Path
 from homeassistant.const import CONF_ACTION, CONF_EMAIL
 from homeassistant.setup import async_setup_component
 
@@ -317,10 +316,10 @@ async def test_email_auto_configure_no_smtp(hass: HomeAssistant) -> None:
     assert result is None
 
 
-async def test_deliver_with_template_and_image_path(hass: HomeAssistant, tmp_path: Path) -> None:
-    template_dir = tmp_path / "email"
-    template_dir.mkdir(parents=True)
-    (template_dir / "test_with_image.html.j2").write_text("{{ alert.img.url if alert.img else 'no img' }}")
+async def test_deliver_with_template_and_image_path(hass: HomeAssistant, tmp_aiopath: Path) -> None:
+    template_dir: Path = tmp_aiopath / "email"
+    await template_dir.mkdir(parents=True)
+    await (template_dir / "test_with_image.html.j2").write_text("{{ alert.img.url if alert.img else 'no img' }}")
     ctx = TestingContext(
         homeassistant=hass,
         recipients=[{CONF_PERSON: "person.tester1", CONF_EMAIL: "tester1@assert.com"}],
@@ -331,7 +330,7 @@ async def test_deliver_with_template_and_image_path(hass: HomeAssistant, tmp_pat
                 CONF_TEMPLATE: "test_with_image.html.j2",
             }
         },
-        template_path=tmp_path,
+        template_path=tmp_aiopath,
         services={"notify": ["smtp"]},
     )
     await ctx.test_initialize()
@@ -361,10 +360,10 @@ async def test_deliver_with_template_and_image_path(hass: HomeAssistant, tmp_pat
     assert call_data["data"]["html"]
 
 
-async def test_render_template_empty_result(hass: HomeAssistant, tmp_path: Path) -> None:
-    template_dir = tmp_path / "email"
-    template_dir.mkdir(parents=True)
-    (template_dir / "empty.html.j2").write_text("")
+async def test_render_template_empty_result(hass: HomeAssistant, tmp_aiopath: Path) -> None:
+    template_dir = tmp_aiopath / "email"
+    await template_dir.mkdir(parents=True)
+    await (template_dir / "empty.html.j2").write_text("")
     ctx = TestingContext(
         homeassistant=hass,
         deliveries={
@@ -374,7 +373,7 @@ async def test_render_template_empty_result(hass: HomeAssistant, tmp_path: Path)
                 CONF_TEMPLATE: "empty.html.j2",
             }
         },
-        template_path=tmp_path,
+        template_path=tmp_aiopath,
         services={"notify": ["smtp"]},
     )
     await ctx.test_initialize()
@@ -388,12 +387,11 @@ async def test_render_template_empty_result(hass: HomeAssistant, tmp_path: Path)
     assert result is None
 
 
-async def test_render_template_with_image_no_snapshot(hass: HomeAssistant, tmp_path: Path) -> None:
-    from anyio import Path as AnyioPath
+async def test_render_template_with_image_no_snapshot(hass: HomeAssistant, tmp_aiopath: Path) -> None:
 
-    template_dir = tmp_path / "email"
-    template_dir.mkdir(parents=True)
-    (template_dir / "img_tpl.html.j2").write_text("{{ alert.img.url if alert.img else 'no img' }}")
+    template_dir = tmp_aiopath / "email"
+    await template_dir.mkdir(parents=True)
+    await (template_dir / "img_tpl.html.j2").write_text("{{ alert.img.url if alert.img else 'no img' }}")
     ctx = TestingContext(
         homeassistant=hass,
         deliveries={
@@ -403,13 +401,13 @@ async def test_render_template_with_image_no_snapshot(hass: HomeAssistant, tmp_p
                 CONF_TEMPLATE: "img_tpl.html.j2",
             }
         },
-        template_path=tmp_path,
+        template_path=tmp_aiopath,
         services={"notify": ["smtp"]},
     )
     await ctx.test_initialize()
     uut = cast("EmailTransport", ctx.transport(TRANSPORT_EMAIL))
 
-    img_path = AnyioPath(tmp_path / "test_image.jpg")
+    img_path = tmp_aiopath / "test_image.jpg"
     result = await uut.render_template(
         "img_tpl.html.j2",
         Envelope(Delivery("test_email", ctx.delivery_config("test_email"), uut), Notification(ctx, message="test")),
@@ -420,12 +418,12 @@ async def test_render_template_with_image_no_snapshot(hass: HomeAssistant, tmp_p
     assert "cid:" in result
 
 
-async def test_render_template_exception(hass: HomeAssistant, tmp_path: Path) -> None:
+async def test_render_template_exception(hass: HomeAssistant, tmp_aiopath: Path) -> None:
     from unittest.mock import patch
 
-    template_dir = tmp_path / "email"
-    template_dir.mkdir(parents=True)
-    (template_dir / "bad.html.j2").write_text("{{ some_template }}")
+    template_dir = tmp_aiopath / "email"
+    await template_dir.mkdir(parents=True)
+    await (template_dir / "bad.html.j2").write_text("{{ some_template }}")
     ctx = TestingContext(
         homeassistant=hass,
         deliveries={
@@ -435,7 +433,7 @@ async def test_render_template_exception(hass: HomeAssistant, tmp_path: Path) ->
                 CONF_TEMPLATE: "bad.html.j2",
             }
         },
-        template_path=tmp_path,
+        template_path=tmp_aiopath,
         services={"notify": ["smtp"]},
     )
     await ctx.test_initialize()
@@ -473,7 +471,7 @@ async def test_render_template_not_found(hass: HomeAssistant) -> None:
     assert result is None
 
 
-async def test_template_cache_hit(tmp_path: Path) -> None:
+async def test_template_cache_hit(tmp_aiopath: Path) -> None:
     uut = EmailTransport(Mock(custom_template_path=None), {})
     first = await uut.load_template("default.html.j2")
     assert first is not None
@@ -481,19 +479,19 @@ async def test_template_cache_hit(tmp_path: Path) -> None:
     assert second == first
 
 
-async def test_find_default_template(tmp_path: Path) -> None:
+async def test_find_default_template(tmp_aiopath: Path) -> None:
 
-    uut = EmailTransport(Mock(custom_template_path=tmp_path), {})
+    uut = EmailTransport(Mock(custom_template_path=tmp_aiopath), {})
     html = await uut.load_template("default.html.j2")
     assert html.startswith("<!doctype html>")  # type:ignore
 
-    async with await anyio.Path(tmp_path / "default.html.j2").open("w") as f:
+    async with await (tmp_aiopath / "default.html.j2").open("w") as f:
         await f.write("{{ 1+1 }}")
-    uut = EmailTransport(Mock(custom_template_path=tmp_path), {})
+    uut = EmailTransport(Mock(custom_template_path=tmp_aiopath), {})
     assert await uut.load_template("default.html.j2") == "{{ 1+1 }}"
 
-    (tmp_path / "email").mkdir()
-    async with await anyio.Path(tmp_path / "email" / "default.html.j2").open("w") as f:
+    await (tmp_aiopath / "email").mkdir()
+    async with await (tmp_aiopath / "email" / "default.html.j2").open("w") as f:
         await f.write("{{ 2+2 }}")
-    uut = EmailTransport(Mock(custom_template_path=tmp_path), {})
+    uut = EmailTransport(Mock(custom_template_path=tmp_aiopath), {})
     assert await uut.load_template("default.html.j2") == "{{ 2+2 }}"

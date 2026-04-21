@@ -1,4 +1,4 @@
-﻿"""Test suite per il transport Gotify di SuperNotify.
+"""Test suite per il transport Gotify di SuperNotify.
 
 Copertura:
 - _build_extras(): funzione pura - tutte le combinazioni di parametri
@@ -12,7 +12,7 @@ Copertura:
 - raw_data residuo NON passato a call_action (schema HACS fisso)
 - Snapshot camera: camera_entity_id, snapshot_url fallback, failure graceful
 - Eccezione service call -> return False + error_count incrementato
-- supported_features include IMAGES, esclude ACTIONS e SPOKEN
+- supported_features include IMAGES, esclude ACTIONS e SPOKEN  # codespell:ignore
 
 Note implementative:
 - Mock su hass_api (non su hass) come da Lezione #7 CLAUDE.md
@@ -22,9 +22,10 @@ Note implementative:
 Percorso nel repo upstream: tests/components/supernotify/test_transport_gotify.py
 """
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from anyio import Path
 from homeassistant.components.notify.const import ATTR_DATA
 from homeassistant.const import CONF_ACTION
 
@@ -42,9 +43,7 @@ from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.envelope import Envelope
 from custom_components.supernotify.notification import Notification
 from custom_components.supernotify.transports.gotify import GotifyTransport, _build_extras
-
 from tests.components.supernotify.hass_setup_lib import TestingContext
-
 
 # ---------------------------------------------------------------------------
 # _build_extras() - test di unita puri (nessuna dipendenza HA)
@@ -73,7 +72,7 @@ def test_build_extras_image_url() -> None:
 
 
 def test_build_extras_click_and_image_url_together() -> None:
-    """click + image_url -> entrambi sotto client::notification."""
+    """Click + image_url -> entrambi sotto client::notification."""
     extras = _build_extras("https://ha.local", "https://ha.local/img.jpg", False, None)
     assert extras is not None
     cn = extras["client::notification"]
@@ -97,7 +96,8 @@ def test_build_extras_intent_url() -> None:
 
 
 def test_build_extras_all_fields() -> None:
-    """Tutti i campi: struttura completa con tutte e 3 le chiavi extras."""    extras = _build_extras(
+    """Tutti i campi: struttura completa con tutte e 3 le chiavi extras."""
+    extras = _build_extras(
         "https://ha.local",
         "https://ha.local/snap.jpg",
         True,
@@ -133,7 +133,7 @@ def test_validate_action_notify_service_is_valid() -> None:
 
 
 def test_validate_action_any_notify_service_is_valid() -> None:
-    """Qualsiasi notify.* e accettato (nome configurabile dall'utente)."""
+    """Qualsiasi notify.* e accettato (nome configurabile dall'utente)."""  # codespell:ignore
     ctx = _ctx()
     uut = GotifyTransport(ctx)
     assert uut.validate_action("notify.my_gotify_instance") is True
@@ -196,7 +196,8 @@ def _envelope(
     """Costruisce un Envelope pronto per deliver()."""
     action_data: dict = {}
     if priority:
-        action_data[ATTR_PRIORITY] = priority    if media:
+        action_data[ATTR_PRIORITY] = priority
+    if media:
         action_data["media"] = media
 
     uut = ctx.transport(TRANSPORT_GOTIFY)
@@ -227,6 +228,7 @@ async def test_deliver_happy_path() -> None:
     assert len(e.calls) == 1
     assert e.calls[0].domain == "notify"
     assert e.calls[0].action == "gotify"
+    assert e.calls[0].action_data
     assert e.calls[0].action_data["message"] == "Test Gotify"
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == 5
 
@@ -242,6 +244,7 @@ async def test_deliver_with_title() -> None:
     result = await uut.deliver(e)
 
     assert result is True
+    assert e.calls[0].action_data
     assert e.calls[0].action_data["message"] == "Corpo"
     assert e.calls[0].action_data["title"] == "Titolo"
 
@@ -256,6 +259,7 @@ async def test_deliver_no_extras_when_only_priority() -> None:
     e = _envelope(ctx)
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert "extras" not in e.calls[0].action_data[ATTR_DATA]
 
 
@@ -268,10 +272,10 @@ async def test_deliver_no_extras_when_only_priority() -> None:
     ("sn_priority", "expected_gotify_priority"),
     [
         (PRIORITY_CRITICAL, 10),
-        (PRIORITY_HIGH,     7),
-        (PRIORITY_MEDIUM,   5),
-        (PRIORITY_LOW,      2),
-        (PRIORITY_MINIMUM,  0),
+        (PRIORITY_HIGH, 7),
+        (PRIORITY_MEDIUM, 5),
+        (PRIORITY_LOW, 2),
+        (PRIORITY_MINIMUM, 0),
     ],
 )
 async def test_priority_mapping(sn_priority: str, expected_gotify_priority: int) -> None:
@@ -284,6 +288,7 @@ async def test_priority_mapping(sn_priority: str, expected_gotify_priority: int)
     e = _envelope(ctx, priority=sn_priority)
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == expected_gotify_priority
     assert isinstance(e.calls[0].action_data[ATTR_DATA]["priority"], int), (
         "La priorita Gotify deve essere un int, non una stringa"
@@ -292,13 +297,15 @@ async def test_priority_mapping(sn_priority: str, expected_gotify_priority: int)
 
 async def test_gotify_priority_override_int() -> None:
     """gotify_priority=9 (int) sovrascrive il mapping automatico."""
-    ctx = _ctx()    await ctx.test_initialize()
+    ctx = _ctx()
+    await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_GOTIFY)
     uut.hass_api = _mock_hass_api()
 
     e = _envelope(ctx, data={"gotify_priority": 9}, priority=PRIORITY_MINIMUM)
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == 9
 
 
@@ -313,6 +320,7 @@ async def test_gotify_priority_override_string() -> None:
     result = await uut.deliver(e)
 
     assert result is True
+    assert e.calls[0].action_data
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == 7
     assert isinstance(e.calls[0].action_data[ATTR_DATA]["priority"], int)
 
@@ -326,6 +334,7 @@ async def test_gotify_priority_string_float() -> None:
 
     e = _envelope(ctx, data={"gotify_priority": "7.0"})
     await uut.deliver(e)
+    assert e.calls[0].action_data
     priority = e.calls[0].action_data[ATTR_DATA]["priority"]
     assert isinstance(priority, int)
 
@@ -340,6 +349,7 @@ async def test_gotify_priority_clamp_too_high() -> None:
     e = _envelope(ctx, data={"gotify_priority": 15})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == 10
 
 
@@ -353,6 +363,7 @@ async def test_gotify_priority_clamp_too_low() -> None:
     e = _envelope(ctx, data={"gotify_priority": -5})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == 0
 
 
@@ -366,6 +377,7 @@ async def test_gotify_priority_invalid_string_falls_back_to_auto_mapping() -> No
     e = _envelope(ctx, data={"gotify_priority": "alta"}, priority=PRIORITY_HIGH)
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data[ATTR_DATA]["priority"] == 7
 
 
@@ -384,8 +396,10 @@ async def test_deliver_with_click_url() -> None:
     e = _envelope(ctx, data={"gotify_click": "https://ha.local:8123"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert extras["client::notification"]["click"]["url"] == "https://ha.local:8123"
+
 
 async def test_deliver_with_image_url_direct() -> None:
     """gotify_image_url -> extras.client::notification.bigImageUrl."""
@@ -394,11 +408,12 @@ async def test_deliver_with_image_url_direct() -> None:
     uut = ctx.transport(TRANSPORT_GOTIFY)
     uut.hass_api = _mock_hass_api()
 
-    e = _envelope(ctx, data={"gotify_image_url": "https://example.com/foto.jpg"})
+    e = _envelope(ctx, data={"gotify_image_url": "https://example.com/photo.jpg"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
-    assert extras["client::notification"]["bigImageUrl"] == "https://example.com/foto.jpg"
+    assert extras["client::notification"]["bigImageUrl"] == "https://example.com/photo.jpg"
 
 
 async def test_deliver_with_markdown_true() -> None:
@@ -411,6 +426,7 @@ async def test_deliver_with_markdown_true() -> None:
     e = _envelope(ctx, data={"gotify_markdown": True})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert extras["client::display"]["contentType"] == "text/markdown"
 
@@ -425,6 +441,7 @@ async def test_deliver_with_markdown_false_no_extras() -> None:
     e = _envelope(ctx, data={"gotify_markdown": False})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert "extras" not in e.calls[0].action_data[ATTR_DATA]
 
 
@@ -438,6 +455,7 @@ async def test_deliver_with_intent_url() -> None:
     e = _envelope(ctx, data={"gotify_intent_url": "intent://scan/abc"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert extras["android::action"]["onReceive"]["intentUrl"] == "intent://scan/abc"
 
@@ -460,6 +478,7 @@ async def test_deliver_with_all_optional_extras() -> None:
     )
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert "client::notification" in extras
     assert "client::display" in extras
@@ -481,6 +500,7 @@ async def test_gotify_markdown_string_true_is_truthy() -> None:
     e = _envelope(ctx, data={"gotify_markdown": "true"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA].get("extras", {})
     assert extras.get("client::display", {}).get("contentType") == "text/markdown"
 
@@ -495,13 +515,12 @@ async def test_gotify_markdown_string_false_is_falsy() -> None:
     e = _envelope(ctx, data={"gotify_markdown": "false"})
     await uut.deliver(e)
 
-    assert "extras" not in e.calls[0].action_data[ATTR_DATA], (
-        "gotify_markdown='false' NON deve attivare markdown."
-    )
+    assert e.calls[0].action_data
+    assert "extras" not in e.calls[0].action_data[ATTR_DATA], "gotify_markdown='false' NON deve attivare markdown."
 
 
 async def test_gotify_attach_image_string_false_is_falsy() -> None:
-    """gotify_attach_image='false' (stringa YAML) -> boolify -> nessun attach."""
+    """gotify_attach_image='false' (stringa YAML) -> boolify -> grab_image non chiamato."""
     ctx = _ctx()
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_GOTIFY)
@@ -510,18 +529,19 @@ async def test_gotify_attach_image_string_false_is_falsy() -> None:
     e = _envelope(
         ctx,
         data={"gotify_attach_image": "false"},
-        media={"snapshot_url": "/api/camera_proxy/camera.test"},
+        media={"camera_entity_id": "camera.test"},
     )
-    await uut.deliver(e)
+    with patch.object(e, "grab_image", new_callable=AsyncMock) as mock_grab:
+        await uut.deliver(e)
+        mock_grab.assert_not_called()
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA].get("extras", {})
-    assert "bigImageUrl" not in extras.get("client::notification", {}), (
-        "gotify_attach_image='false' NON deve attivare l'attach."
-    )
+    assert "bigImageUrl" not in extras.get("client::notification", {})
 
 
 async def test_gotify_attach_image_string_true_is_truthy() -> None:
-    """gotify_attach_image='true' (stringa YAML) -> boolify -> attach attivato."""
+    """gotify_attach_image='true' (stringa YAML) -> boolify -> grab_image chiamato."""
     ctx = _ctx()
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_GOTIFY)
@@ -531,14 +551,15 @@ async def test_gotify_attach_image_string_true_is_truthy() -> None:
     e = _envelope(
         ctx,
         data={"gotify_attach_image": "true"},
-        media={"snapshot_url": "/api/camera_proxy/camera.test"},
+        media={"camera_entity_id": "camera.test"},
     )
-    await uut.deliver(e)
+    fake_path = Path("/config/www/supernotify/image/test.jpg")
+    with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=fake_path):
+        await uut.deliver(e)
 
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA].get("extras", {})
-    assert "bigImageUrl" in extras.get("client::notification", {}), (
-        "gotify_attach_image='true' DEVE attivare l'attach."
-    )
+    assert "bigImageUrl" in extras.get("client::notification", {}), "gotify_attach_image='true' DEVE attivare l'attach."
 
 
 # ---------------------------------------------------------------------------
@@ -568,7 +589,9 @@ async def test_image_url_takes_precedence_over_attach_image() -> None:
     snapshot_calls = [a for a in all_call_args if a[0] == "camera" and a[1] == "snapshot"]
     assert snapshot_calls == []
 
-    extras = e.calls[0].action_data[ATTR_DATA]["extras"]    assert extras["client::notification"]["bigImageUrl"] == "https://direct-url.com/img.jpg"
+    assert e.calls[0].action_data
+    extras = e.calls[0].action_data[ATTR_DATA]["extras"]
+    assert extras["client::notification"]["bigImageUrl"] == "https://direct-url.com/img.jpg"
 
 
 # ---------------------------------------------------------------------------
@@ -592,12 +615,13 @@ async def test_attach_image_with_snapshot_url() -> None:
     await uut.deliver(e)
 
     mock_api.abs_url.assert_called_with("/api/camera_proxy/camera.ingresso")
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert extras["client::notification"]["bigImageUrl"] == "https://my.home/api/camera_proxy/camera.ingresso"
 
 
-async def test_attach_image_with_camera_entity_calls_snapshot() -> None:
-    """attach_image=True + camera_entity_id -> camera.snapshot chiamato prima di ntfy."""
+async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
+    """attach_image=True + camera_entity_id -> grab_image chiamato, bigImageUrl nel payload."""
     ctx = _ctx()
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_GOTIFY)
@@ -609,18 +633,17 @@ async def test_attach_image_with_camera_entity_calls_snapshot() -> None:
         data={"gotify_attach_image": True},
         media={"camera_entity_id": "camera.ingresso"},
     )
-    result = await uut.deliver(e)
+    fake_path = Path("/config/www/supernotify/image/test.jpg")
+    with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=fake_path) as mock_grab:
+        result = await uut.deliver(e)
+        mock_grab.assert_called_once()
 
     assert result is True
-    # Verifica che camera.snapshot sia stato chiamato
-    all_calls = mock_api.call_service.call_args_list
-    snapshot_calls = [c for c in all_calls if c.args[0] == "camera" and c.args[1] == "snapshot"]
-    assert len(snapshot_calls) == 1, "camera.snapshot deve essere chiamato esattamente una volta"
-    assert snapshot_calls[0].kwargs["service_data"]["entity_id"] == "camera.ingresso"
-
-    # Verifica bigImageUrl nel payload
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert "bigImageUrl" in extras["client::notification"]
+    assert extras["client::notification"]["bigImageUrl"] == "https://my.home/local/supernotify/image/test.jpg"
+
 
 async def test_attach_image_false_no_snapshot_no_bigimage() -> None:
     """attach_image=False -> camera.snapshot non chiamato, bigImageUrl assente."""
@@ -643,6 +666,7 @@ async def test_attach_image_false_no_snapshot_no_bigimage() -> None:
     assert snapshot_calls == []
 
     # bigImageUrl assente
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA].get("extras", {})
     assert "bigImageUrl" not in extras.get("client::notification", {})
 
@@ -658,40 +682,28 @@ async def test_attach_image_true_without_media_no_bigimage() -> None:
     result = await uut.deliver(e)
 
     assert result is True
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA].get("extras", {})
     assert "bigImageUrl" not in extras.get("client::notification", {})
 
 
-async def test_attach_image_camera_snapshot_failure_delivery_continues() -> None:
-    """Se camera.snapshot fallisce, la notifica viene inviata lo stesso senza bigImageUrl."""
+async def test_attach_image_grab_image_failure_delivery_continues() -> None:
+    """Se grab_image fallisce (None), la notifica viene inviata lo stesso senza bigImageUrl."""
     ctx = _ctx()
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_GOTIFY)
-    call_count = 0
-
-    async def _side_effect(*args, **kwargs):
-        nonlocal call_count
-        if args[0] == "camera" and args[1] == "snapshot":
-            raise RuntimeError("camera irraggiungibile")
-        call_count += 1
-        return {}
-
-    mock_api = _mock_hass_api()
-    mock_api.call_service.side_effect = _side_effect
-    uut.hass_api = mock_api
+    uut.hass_api = _mock_hass_api()
 
     e = _envelope(
         ctx,
         data={"gotify_attach_image": True},
         media={"camera_entity_id": "camera.ingresso"},
     )
-    result = await uut.deliver(e)
+    with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=None):
+        result = await uut.deliver(e)
 
-    # La notifica deve arrivare comunque
     assert result is True
-    assert call_count == 1, "notify.gotify deve essere chiamato anche dopo errore snapshot"
-
-    # bigImageUrl assente perche lo snapshot ha fallito
+    assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA].get("extras", {})
     assert "bigImageUrl" not in extras.get("client::notification", {})
 
@@ -722,6 +734,7 @@ async def test_gotify_keys_not_leaked_to_service_payload() -> None:
     await uut.deliver(e)
 
     ad = e.calls[0].action_data
+    assert ad
     leaked = [k for k in ad if k.startswith("gotify_")]
     assert leaked == [], f"Chiavi gotify_* trovate nel payload: {leaked}"
 
@@ -729,6 +742,7 @@ async def test_gotify_keys_not_leaked_to_service_payload() -> None:
     payload_data = ad.get(ATTR_DATA, {})
     leaked_nested = [k for k in payload_data if k.startswith("gotify_")]
     assert leaked_nested == [], f"Chiavi gotify_* trovate in ATTR_DATA: {leaked_nested}"
+
 
 async def test_raw_data_residuo_not_passed_to_notify_service() -> None:
     """Chiavi non-gotify_* in data non vengono passate al payload di notify.
@@ -751,6 +765,7 @@ async def test_raw_data_residuo_not_passed_to_notify_service() -> None:
     await uut.deliver(e)
 
     ad = e.calls[0].action_data
+    assert ad
     assert "some_other_key" not in ad
     assert "another_key" not in ad
     assert "some_other_key" not in ad.get(ATTR_DATA, {})
@@ -776,6 +791,7 @@ async def test_deliver_service_exception_returns_false() -> None:
 
     assert result is False
     assert e.error_count > 0
+
 
 async def test_deliver_service_exception_no_calls_recorded() -> None:
     """Se notify.gotify lancia eccezione, envelope.calls rimane vuoto."""
@@ -834,7 +850,7 @@ def test_default_config_no_default_action() -> None:
     ctx = _ctx()
     uut = GotifyTransport(ctx)
     assert uut.default_config.delivery_defaults.action is None, (
-        "Gotify non ha default action -- richiede action: notify.<nome> in delivery.yaml"
+        "Gotify non ha default action -- richiede action: notify.<name> in delivery.yaml"
     )
 
 

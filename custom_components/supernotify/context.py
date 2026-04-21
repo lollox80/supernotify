@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from anyio import Path
 from homeassistant.helpers.typing import ConfigType
 
 if TYPE_CHECKING:

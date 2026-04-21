@@ -62,8 +62,7 @@ from custom_components.supernotify.snoozer import Snoozer
 from .doubles_lib import DummyService
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
+    from anyio import Path
     from homeassistant.helpers.typing import ConfigType
 
     from custom_components.supernotify.envelope import Envelope

@@ -52,7 +52,7 @@ Es gibt viele [Rezepte](https://supernotify.rhizomatics.org.uk/recipes/) mit Bei
     * Mobilen Apps werden automatisch erkannt, einschließlich Hersteller und Modell des Telefons
     * Alexa-Geräte für Klingeltöne werden automatisch erkannt
 * Über `notify`-Integrationen hinaus
-    * Klingeltöne, Sirenen, SMS, TTS, Alexa-Ankündigungen und -Töne, API-Aufrufe, MQTT-Geräte
+    * Klingeltöne, Sirenen, SMS, TTS, Alexa-Ankündigungen und -Töne, API-Aufrufe, MQTT-Geräte,  Gotify, ntfy
     * Alle Standard-`notify`- und `notify.group`-Implementierungen verfügbar
     * Stark vereinfachte Nutzung von mobilen Push-Benachrichtigungen, z. B. für iPhone
 * Bedingte Benachrichtigungen

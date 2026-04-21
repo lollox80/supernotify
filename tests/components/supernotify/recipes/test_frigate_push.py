@@ -116,4 +116,4 @@ async def test_frigate_blueprint_notification(hass: HomeAssistant, local_server:
     assert call_data.action_data is not None
     assert call_data.action_data["message"] == "A Car was detected on the Driveway camera."
     assert call_data.action_data["target"] == ["joe@mctest.org"]
-    assert sum(1 for img in call_data.action_data["data"]["images"] if img.endswith("jpeg")) == 1
+    assert sum(1 for img in call_data.action_data["data"]["images"] if img.endswith((".jpg", ".jpeg"))) == 1

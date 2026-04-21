@@ -1,11 +1,11 @@
 import io
 from dataclasses import dataclass
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
 import pytest
+from anyio import Path
 from homeassistant.components.mqtt.client import MQTT
 from homeassistant.components.mqtt.models import DATA_MQTT, MqttData
 from homeassistant.components.notify.const import DOMAIN
@@ -41,6 +41,7 @@ from tests.components.supernotify.doubles_lib import MockImageEntity
 from tests.components.supernotify.hass_setup_lib import MockableHomeAssistant
 
 if TYPE_CHECKING:
+    import pathlib
     from collections.abc import Generator
     from ssl import SSLContext
 
@@ -151,8 +152,9 @@ def hass_api(hass: HomeAssistant) -> HomeAssistantAPI:
 
 
 @pytest.fixture
-def hass_api_with_image(hass_api: HomeAssistantAPI, sample_image: TestImage) -> HomeAssistantAPI:
+async def hass_api_with_image(hass_api: HomeAssistantAPI, sample_image: TestImage) -> HomeAssistantAPI:
     image_entity = MockImageEntity(sample_image.path)
+    await image_entity.load()
     hass_api._hass.data["image"] = Mock(spec=EntityComponent)  # type: ignore[attr-defined,union-attr]
     hass_api._hass.data["image"].get_entity = Mock(return_value=image_entity)  # type: ignore[attr-defined,union-attr]
     return hass_api
@@ -172,20 +174,25 @@ def mock_hass_api(mock_hass: HomeAssistant) -> HomeAssistantAPI:
 
 
 @pytest.fixture
+def tmp_aiopath(tmp_path: pathlib.Path):
+    return Path(tmp_path)
+
+
+@pytest.fixture
 def mock_context(
     mock_hass: HomeAssistant,
     mock_people_registry: PeopleRegistry,
     mock_scenario_registry: ScenarioRegistry,
     mock_hass_api: HomeAssistantAPI,
     mock_delivery_registry: DeliveryRegistry,
-    tmp_path: Path,
+    tmp_aiopath: Path,
 ) -> Context:
     context = Mock(spec=Context)
     context.scenario_registry = mock_scenario_registry
     context.people_registry = mock_people_registry
     context.delivery_registry = mock_delivery_registry
     context.media_storage = Mock()
-    context.media_storage.media_path = tmp_path / "media"
+    context.media_storage.media_path = tmp_aiopath / "media"
     context.hass_api = mock_hass_api
     context.cameras = {}
     context.snoozer = Snoozer()
@@ -193,7 +200,7 @@ def mock_context(
     context.mobile_actions = {}
     context.hass_api.internal_url = "http://hass-dev"
     context.hass_api.external_url = "http://hass-dev.nabu.casa"
-    context.custom_template_path = tmp_path / "templates"
+    context.custom_template_path = tmp_aiopath / "templates"
 
     mock_delivery_registry._deliveries = {
         "plain_email": Delivery("plain_email", {}, EmailTransport(context)),
@@ -217,8 +224,9 @@ def sample_jpeg(request) -> TestImage:
 
 
 @pytest.fixture
-def sample_image_entity_id(mock_hass_api: HomeAssistantAPI, sample_image: TestImage) -> str:
+async def sample_image_entity_id(mock_hass_api: HomeAssistantAPI, sample_image: TestImage) -> str:
     image_entity = MockImageEntity(sample_image.path)
+    await image_entity.load()
     mock_hass_api.domain_entity.return_value = Mock(return_value=image_entity)  # type: ignore[attr-defined]
     return "image.testing"
 

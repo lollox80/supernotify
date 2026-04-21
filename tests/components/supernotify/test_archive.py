@@ -108,7 +108,7 @@ async def test_cleanup_archive(mock_hass_api: HomeAssistantAPI) -> None:
     with patch("aiofiles.os.scandir", return_value=mock_files) as _scan:
         with patch("aiofiles.os.unlink") as rmfr:
             await uut.cleanup()
-            rmfr.assert_called_once_with(Path("xyz"))
+            rmfr.assert_called_once_with("xyz")
     # skip cleanup for a few hours
     assert uut.archive_directory is not None
     first_purge = uut.archive_directory.last_purge

@@ -52,7 +52,7 @@ Hay muchas [recetas](https://supernotify.rhizomatics.org.uk/recipes/) con fragme
     * Aplicaciones móviles descubiertas automáticamente, incluyendo fabricante y modelo del teléfono
     * Dispositivos Alexa para carillones descubiertos automáticamente
 * Más allá de las integraciones `notify`
-    * Carillones, sirenas, SMS, TTS, anuncios y sonidos de Alexa, llamadas API, dispositivos MQTT
+    * Carillones, sirenas, SMS, TTS, anuncios y sonidos de Alexa, llamadas API, dispositivos MQTT, Gotify, ntfy
     * Todas las implementaciones estándar `notify` y `notify.group` disponibles
     * Uso muy simplificado de notificaciones push móviles, por ejemplo para iPhone
 * Notificaciones condicionales

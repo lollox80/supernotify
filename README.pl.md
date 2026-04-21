@@ -52,7 +52,7 @@ Dostępnych jest wiele [przepisów](https://supernotify.rhizomatics.org.uk/recip
     * Aplikacje mobilne wykrywane automatycznie, w tym producent i model telefonu
     * Urządzenia Alexa do dzwonków wykrywane automatycznie
 * Poza integracjami `notify`
-    * Dzwonki, syreny, SMS, TTS, ogłoszenia i dźwięki Alexa, wywołania API, urządzenia MQTT
+    * Dzwonki, syreny, SMS, TTS, ogłoszenia i dźwięki Alexa, wywołania API, urządzenia MQTT, Gotify, ntfy
     * Wszystkie standardowe implementacje `notify` i `notify.group` dostępne
     * Znacznie uproszczone korzystanie z powiadomień push na telefon, np. dla iPhone
 * Powiadomienia warunkowe

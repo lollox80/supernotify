@@ -1,4 +1,3 @@
-import pathlib
 from typing import TYPE_CHECKING
 
 from anyio import Path
@@ -33,7 +32,7 @@ async def test_example_template_strict_parsed(hass: HomeAssistant) -> None:
                 CONF_OPTIONS: {OPTION_STRICT_TEMPLATE: True},
             }
         },
-        template_path=pathlib.Path("custom_components/supernotify/default_templates"),
+        template_path=Path("custom_components/supernotify/default_templates"),
         services={"notify": ["smtp"]},
     )
     await ctx.test_initialize()
