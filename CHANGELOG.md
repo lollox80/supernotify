@@ -1,5 +1,12 @@
 # Public releases
 
+## 1.14.0
+### Delivery Sequencing
+- Delivieries now use asyncio.gather to maximize parallelism
+- Deliveries needing snapshot images sequence after simple service calls
+- Camera PTZ call initiated at the start, so motion can complete in background while service calls happening
+### Bug fixes
+- Multiple bug fixes contributed by [@lollox80](https://github.com/lollox80)
 ## 1.13.0
 ### Transport Generic
 - Replaced hard-coded allow-list of fields per underlying service with dynamic validation using the service's action schema to prune out unsupported fields or make type conversions.
