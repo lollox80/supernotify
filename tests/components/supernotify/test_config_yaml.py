@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import pathlib
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
@@ -438,6 +439,9 @@ async def test_delivery_and_scenario(hass: HomeAssistant) -> None:
     # type: ignore
     call_record: dict[str, Any] = delivered_chimes[0]["calls"][0]
     del call_record["elapsed"]
+    ts = dt.datetime.fromisoformat(call_record["timestamp"])
+    assert (dt.datetime.now(tz=dt.UTC) - ts).total_seconds() < 60
+    del call_record["timestamp"]
     assert call_record == {
         "domain": "media_player",
         "action": "play_media",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as dt
 import logging
 import time
 import unicodedata
@@ -25,8 +26,6 @@ from .const import (
 from .model import DebugTrace, DeliveryConfig, SuppressionReason, Target, TargetRequired, TransportConfig, TransportFeature
 
 if TYPE_CHECKING:
-    import datetime as dt
-
     from homeassistant.helpers.typing import ConfigType
 
     from .context import Context
@@ -175,6 +174,7 @@ class Transport:
                 )
                 envelope.calls.append(
                     CallRecord(
+                        dt.datetime.now(tz=dt_util.get_default_time_zone()),
                         time.time() - start_time,
                         domain,
                         service,
@@ -191,6 +191,7 @@ class Transport:
                 )
                 envelope.calls.append(
                     CallRecord(
+                        dt.datetime.now(tz=dt_util.get_default_time_zone()),
                         time.time() - start_time,
                         domain,
                         service,
@@ -205,7 +206,15 @@ class Transport:
         except Exception as e:
             self.record_error(str(e), method="call_action")
             envelope.failed_calls.append(
-                CallRecord(time.time() - start_time, domain, service, action_data, target_data, exception=str(e))
+                CallRecord(
+                    dt.datetime.now(tz=dt_util.get_default_time_zone()),
+                    time.time() - start_time,
+                    domain,
+                    service,
+                    action_data,
+                    target_data,
+                    exception=str(e),
+                )
             )
             _LOGGER.exception("SUPERNOTIFY Failed to notify %s via %s, data=%s", self.name, qualified_action, action_data)
             envelope.error_count += 1

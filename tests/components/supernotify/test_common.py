@@ -1,3 +1,4 @@
+import datetime as dt
 from unittest.mock import Mock
 
 from custom_components.supernotify.common import (
@@ -46,7 +47,10 @@ def test_ensure_dict():
 
 
 def test_call_record():
-    assert CallRecord(13.4, "switch", "toggle", {}, None, None).contents() == {
+    assert CallRecord(
+        dt.datetime(2026, 3, 12, 8, 14, 3, 100, tzinfo=dt.UTC), 13.4, "switch", "toggle", {}, None, None
+    ).contents() == {
+        "timestamp": "2026-03-12T08:14:03.000100+00:00",
         "domain": "switch",
         "action": "toggle",
         "action_data": {},

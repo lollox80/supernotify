@@ -101,6 +101,7 @@ def sanitize(v: Any, minimal: bool = True, top_level_keys_only: bool = False, **
 
 @dataclass
 class CallRecord:
+    timestamp: dt.datetime = field()
     elapsed: float = field()
     domain: str | None = field(default=None)
     action: str | None = field(default=None)
@@ -112,6 +113,7 @@ class CallRecord:
 
     def contents(self, **_kwargs: Any) -> dict[str, Any]:
         result = {
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "domain": self.domain,
             "action": self.action,
             "action_data": self.action_data,
