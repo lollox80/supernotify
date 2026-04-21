@@ -64,7 +64,7 @@ class Transport:
         self.last_error_message: str | None = None
         self.error_count: int = 0
 
-    async def initialize(self, context: Context) -> None:  # noqa: ARG002
+    async def initialize(self) -> None:
         """Async post-construction initialization"""
         if self.name is None:
             raise IntegrationError("Invalid nameless transport adaptor subclass")

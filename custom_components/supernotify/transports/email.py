@@ -76,23 +76,23 @@ class EmailTransport(Transport):
     def __init__(self, context: Context, transport_config: ConfigType | None = None) -> None:
         super().__init__(context, transport_config)
         self.default_template_path: Path = Path(os.path.join(custom_components.supernotify.__path__[0], "default_templates"))  # noqa: PTH118
-        self.custom_template_path: Path | None = None
+        self.custom_template_path: Path | None = context.custom_template_path
         self.custom_email_template_path: Path | None = None
         self.template_cache: dict[str, str] = {}
 
-    async def initialize(self, context: Context) -> None:
+    async def initialize(self) -> None:
         try:
-            if context.custom_template_path is not None:
-                self.custom_template_path = Path(context.custom_template_path)
-                if await (context.custom_template_path / "email").exists():
-                    self.custom_email_template_path = Path(context.custom_template_path / "email")
+            if self.custom_template_path is not None and await self.custom_template_path.exists():
+                if await (self.custom_template_path / "email").exists():
+                    _LOGGER.debug("SUPERNOTIFY Using email specific custom templates at %s", self.custom_template_path)
+                    self.custom_email_template_path = Path(self.custom_template_path / "email")
                 else:
                     _LOGGER.debug("SUPERNOTIFY Email specific custom templates not configured")
             else:
                 _LOGGER.info("SUPERNOTIFY Custom templates not configured")
                 self.custom_template_path = None
         except Exception as e:
-            _LOGGER.error("SUPERNOTIFY Failed to verify custom template path %s: %s", context.custom_template_path, e)
+            _LOGGER.error("SUPERNOTIFY Failed to verify custom template path %s: %s", self.custom_template_path, e)
 
     def validate_action(self, action: str | None) -> bool:
         """Override in subclass if transport has fixed action or doesn't require one"""

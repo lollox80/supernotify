@@ -480,18 +480,23 @@ async def test_template_cache_hit(tmp_aiopath: Path) -> None:
 
 
 async def test_find_default_template(tmp_aiopath: Path) -> None:
-
-    uut = EmailTransport(Mock(custom_template_path=tmp_aiopath), {})
+    ctx = Mock(custom_template_path=tmp_aiopath)
+    uut = EmailTransport(ctx, {})
+    await uut.initialize()
     html = await uut.load_template("default.html.j2")
     assert html.startswith("<!doctype html>")  # type:ignore
 
     async with await (tmp_aiopath / "default.html.j2").open("w") as f:
         await f.write("{{ 1+1 }}")
-    uut = EmailTransport(Mock(custom_template_path=tmp_aiopath), {})
+    ctx = Mock(custom_template_path=tmp_aiopath)
+    uut = EmailTransport(ctx, {})
+    await uut.initialize()
     assert await uut.load_template("default.html.j2") == "{{ 1+1 }}"
 
     await (tmp_aiopath / "email").mkdir()
     async with await (tmp_aiopath / "email" / "default.html.j2").open("w") as f:
         await f.write("{{ 2+2 }}")
-    uut = EmailTransport(Mock(custom_template_path=tmp_aiopath), {})
+    ctx = Mock(custom_template_path=tmp_aiopath)
+    uut = EmailTransport(ctx, {})
+    await uut.initialize()
     assert await uut.load_template("default.html.j2") == "{{ 2+2 }}"
