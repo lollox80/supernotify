@@ -80,10 +80,11 @@ class EmailTransport(Transport):
         self.custom_email_template_path: Path | None = None
         self.template_cache: dict[str, str] = {}
 
+    async def initialize(self, context: Context) -> None:
         try:
             if context.custom_template_path is not None:
                 self.custom_template_path = Path(context.custom_template_path)
-                if (context.custom_template_path / "email").exists():
+                if await (context.custom_template_path / "email").exists():
                     self.custom_email_template_path = Path(context.custom_template_path / "email")
                 else:
                     _LOGGER.debug("SUPERNOTIFY Email specific custom templates not configured")

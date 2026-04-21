@@ -68,7 +68,7 @@ class Context:
             _LOGGER.warning("SUPERNOTIFY Context threw away kwargs: %s", kwargs)
 
     async def initialize(self) -> None:
-        if self.custom_template_path and not self.custom_template_path.exists():
+        if self.custom_template_path and not await self.custom_template_path.exists():
             _LOGGER.warning("SUPERNOTIFY custom template path not found at %s", self.custom_template_path)
             self.custom_template_path = None
 

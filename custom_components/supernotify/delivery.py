@@ -351,14 +351,14 @@ class DeliveryRegistry:
         if self._transport_instances:
             for transport in self._transport_instances:
                 self.transports[transport.name] = transport
-                await transport.initialize()
+                await transport.initialize(context)
                 await self.initialize_transport_deliveries(context, transport)
         if self._transport_types:
             for transport_class, kwargs in self._transport_types.items():
                 transport_config: ConfigType = self._transport_configs.get(transport_class.name, {})
                 transport = transport_class(context, transport_config, **kwargs)
                 self.transports[transport_class.name] = transport
-                await transport.initialize()
+                await transport.initialize(context)
                 await self.initialize_transport_deliveries(context, transport)
                 self.transports[transport_class.name] = transport
 
