@@ -166,15 +166,17 @@ class Transport:
 
             domain, service = qualified_action.split(".", 1)
             start_time = time.time()
+            timestamp: dt.datetime | None = None
             if target_data:
                 # home-assistant messes with the service_data passed by ref
                 service_data_as_sent = dict(action_data)
+                timestamp = dt.datetime.now(tz=dt_util.get_default_time_zone())
                 service_response = await self.hass_api.call_service(
                     domain, service, service_data=action_data, target=target_data, debug=delivery.debug
                 )
                 envelope.calls.append(
                     CallRecord(
-                        dt.datetime.now(tz=dt_util.get_default_time_zone()),
+                        timestamp,
                         time.time() - start_time,
                         domain,
                         service,
@@ -186,12 +188,13 @@ class Transport:
                 )
             else:
                 service_data_as_sent = dict(action_data)
+                timestamp = dt.datetime.now(tz=dt_util.get_default_time_zone())
                 service_response = await self.hass_api.call_service(
                     domain, service, service_data=action_data, debug=delivery.debug
                 )
                 envelope.calls.append(
                     CallRecord(
-                        dt.datetime.now(tz=dt_util.get_default_time_zone()),
+                        timestamp,
                         time.time() - start_time,
                         domain,
                         service,
@@ -207,7 +210,7 @@ class Transport:
             self.record_error(str(e), method="call_action")
             envelope.failed_calls.append(
                 CallRecord(
-                    dt.datetime.now(tz=dt_util.get_default_time_zone()),
+                    timestamp,
                     time.time() - start_time,
                     domain,
                     service,

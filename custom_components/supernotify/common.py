@@ -101,7 +101,7 @@ def sanitize(v: Any, minimal: bool = True, top_level_keys_only: bool = False, **
 
 @dataclass
 class CallRecord:
-    timestamp: dt.datetime = field()
+    timestamp: dt.datetime | None = field()
     elapsed: float = field()
     domain: str | None = field(default=None)
     action: str | None = field(default=None)

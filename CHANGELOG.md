@@ -11,6 +11,8 @@
 ### Bug fixes
 - Multiple bug fixes contributed by [@lollox80](https://github.com/lollox80)
 - GitHub actions now runs tests and lints for both py3.13 and py3.14
+### Diagnostics
+- Call record now has a timestamp for service call
 ## 1.13.0
 ### Transport Generic
 - Replaced hard-coded allow-list of fields per underlying service with dynamic validation using the service's action schema to prune out unsupported fields or make type conversions.
