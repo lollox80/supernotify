@@ -9,8 +9,9 @@ Supported data: keys (all optional except ntfy_device_id):
     ntfy_priority    int         5=urgent, 4=high, 3=default, 2=low, 1=min
     ntfy_tags        list[str]   tag/emoji shortcodes (e.g. ["warning", "house"])
     ntfy_click       str         URL opened on notification tap
-    ntfy_attach_image bool       take camera snapshot and attach to ntfy
-                                 (uses media.camera_entity_id in the SuperNotify call)
+    ntfy_attach_image bool       grab image via shared pipeline and attach to ntfy.
+                                 Used only when no snapshot_url is already in media.
+                                 Requires media_path under /config/www/ to be URL-accessible.
     ntfy_filename    str         attachment filename (default: snapshot.jpg)
     ntfy_icon        str         JPEG/PNG icon URL
     ntfy_markdown    bool        enable Markdown rendering (default: false)
@@ -30,17 +31,19 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.const import ATTR_DEVICE_ID, ATTR_ENTITY_ID
+from homeassistant.const import ATTR_DEVICE_ID
 
 from custom_components.supernotify.common import boolify
 from custom_components.supernotify.const import (
-    ATTR_MEDIA_CAMERA_ENTITY_ID,
+    ATTR_MEDIA_SNAPSHOT_URL,
     TRANSPORT_NTFY,
 )
 from custom_components.supernotify.model import DebugTrace, TargetRequired, TransportConfig, TransportFeature
 from custom_components.supernotify.transport import Transport
 
 if TYPE_CHECKING:
+    from anyio import Path
+
     from custom_components.supernotify.envelope import Envelope
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,9 +57,6 @@ _PRIORITY_MAP = {
 }
 
 _DELAY_RE = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?")
-
-_SNAPSHOT_PATH = "/config/www/supernotify_ntfy_snapshot.jpg"
-_SNAPSHOT_URL_PATH = "/local/supernotify_ntfy_snapshot.jpg"
 
 _REQUIRED_ACTION_KEYS = {"action", "label"}
 
@@ -102,9 +102,18 @@ class NtfyTransport(Transport):
 
     name = TRANSPORT_NTFY
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     @property
     def supported_features(self) -> TransportFeature:
-        return TransportFeature.MESSAGE | TransportFeature.TITLE | TransportFeature.IMAGES | TransportFeature.ACTIONS
+        return (
+            TransportFeature.MESSAGE
+            | TransportFeature.TITLE
+            | TransportFeature.IMAGES
+            | TransportFeature.ACTIONS
+            | TransportFeature.SNAPSHOT_IMAGE
+        )
 
     @property
     def default_config(self) -> TransportConfig:
@@ -112,6 +121,13 @@ class NtfyTransport(Transport):
         config.delivery_defaults.action = "ntfy.publish"
         config.delivery_defaults.target_required = TargetRequired.NEVER
         return config
+
+    def _path_to_url(self, image_path: Path) -> str | None:
+        path_str = str(image_path)
+        idx = path_str.find("/config/www/")
+        if idx != -1:
+            return self.hass_api.abs_url("/local/" + path_str[idx + len("/config/www/") :])
+        return None
 
     async def deliver(self, envelope: Envelope, debug_trace: DebugTrace | None = None) -> bool:  # noqa: ARG002
         _LOGGER.debug("SUPERNOTIFY ntfy %s", envelope.message)
@@ -142,8 +158,8 @@ class NtfyTransport(Transport):
                 if not 1 <= priority_ovr <= 5:
                     _LOGGER.warning("SUPERNOTIFY ntfy: ntfy_priority %s out of range 1-5, using mapping", priority_ovr)
                     priority_ovr = None
-            except TypeError, ValueError:
-                _LOGGER.warning("SUPERNOTIFY ntfy: invalid ntfy_priority %r, using mapping", priority_ovr)
+            except (TypeError, ValueError) as e:  # py3.13 compat
+                _LOGGER.warning("SUPERNOTIFY ntfy: invalid ntfy_priority %r, using mapping: %s", priority_ovr, e)
                 priority_ovr = None
 
         ntfy_priority = priority_ovr or _PRIORITY_MAP.get(envelope.priority or "medium", 3)
@@ -171,28 +187,19 @@ class NtfyTransport(Transport):
             else:
                 action_data["actions"] = _validate_actions(actions)[:3]
 
-        # Camera snapshot attachment
-        if attach_image and envelope.media:
-            camera_entity_id = envelope.media.get(ATTR_MEDIA_CAMERA_ENTITY_ID)
-            snapshot_url = envelope.media.get("snapshot_url")
-            if camera_entity_id:
-                try:
-                    await self.hass_api.call_service(
-                        "camera",
-                        "snapshot",
-                        service_data={
-                            ATTR_ENTITY_ID: camera_entity_id,
-                            "filename": _SNAPSHOT_PATH,
-                        },
-                    )
-                    action_data["attach"] = self.hass_api.abs_url(_SNAPSHOT_URL_PATH)
-                    action_data["filename"] = filename
-                    _LOGGER.debug("SUPERNOTIFY ntfy snapshot from %s -> %s", camera_entity_id, _SNAPSHOT_PATH)
-                except Exception as e:
-                    _LOGGER.warning("SUPERNOTIFY ntfy: failed to snap camera %s: %s", camera_entity_id, e)
-            elif snapshot_url:
+        # Image attachment: snapshot_url passthrough > grab_image for camera
+        if envelope.media:
+            snapshot_url = envelope.media.get(ATTR_MEDIA_SNAPSHOT_URL)
+            if snapshot_url:
                 action_data["attach"] = self.hass_api.abs_url(snapshot_url)
                 action_data["filename"] = filename
+            elif attach_image:
+                image_path = await envelope.grab_image()
+                if image_path:
+                    image_url = self._path_to_url(image_path)
+                    if image_url:
+                        action_data["attach"] = image_url
+                        action_data["filename"] = filename
 
         # Residual generic keys (non ntfy_*) passed to payload
         action_data.update(raw_data)

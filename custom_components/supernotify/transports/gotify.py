@@ -154,11 +154,8 @@ class GotifyTransport(Transport):
                         priority_ovr,
                     )
                     priority_ovr = max(0, min(10, priority_ovr))
-            except TypeError, ValueError:
-                _LOGGER.warning(
-                    "SUPERNOTIFY gotify: invalid gotify_priority %r, using auto mapping",
-                    priority_ovr_raw,
-                )
+            except (TypeError, ValueError) as e:  # py3.13 compat
+                _LOGGER.warning("SUPERNOTIFY gotify: invalid gotify_priority %r, using auto mapping: %s", priority_ovr_raw, e)
                 priority_ovr = None
 
         gotify_priority: int = priority_ovr if priority_ovr is not None else _PRIORITY_MAP.get(envelope.priority or "medium", 5)

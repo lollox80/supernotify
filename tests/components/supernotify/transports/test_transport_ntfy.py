@@ -17,7 +17,10 @@ Coverage:
 Path in upstream repo: tests/components/supernotify/test_transport_ntfy.py
 """
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
+from anyio import Path
 
 from custom_components.supernotify.const import (
     ATTR_PRIORITY,
@@ -207,6 +210,7 @@ async def test_priority_mapping(sn_priority: str, expected_ntfy_priority: int) -
     await uut.deliver(e)
 
     assert e.calls, "There must be at least one recorded call"
+    assert e.calls[0].action_data
     assert e.calls[0].action_data["priority"] == expected_ntfy_priority
 
 
@@ -222,7 +226,7 @@ async def test_ntfy_priority_overrides_sn_mapping() -> None:
         priority=PRIORITY_CRITICAL,  # would map to 5, but must be overridden
     )
     await uut.deliver(e)
-
+    assert e.calls[0].action_data
     assert e.calls[0].action_data["priority"] == 1
 
 
@@ -251,6 +255,7 @@ async def test_deliver_with_all_optional_fields() -> None:
     )
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     ad = e.calls[0].action_data
     assert ad["tags"] == ["warning", "house"]
     assert ad["click"] == "https://homeassistant.local:8123"
@@ -269,6 +274,7 @@ async def test_deliver_with_delay() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_delay": "10m"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data["delay"] == "00:10"
 
 
@@ -281,6 +287,7 @@ async def test_deliver_with_delay_hours_minutes() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_delay": "1h30m"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data["delay"] == "01:30"
 
 
@@ -299,6 +306,7 @@ async def test_actions_truncated_to_3() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_actions": five_actions})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     actions_sent = e.calls[0].action_data["actions"]
     assert len(actions_sent) == 3
     assert actions_sent[0]["label"] == "Link 0"
@@ -315,6 +323,7 @@ async def test_actions_exactly_3_not_truncated() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_actions": three_actions})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert len(e.calls[0].action_data["actions"]) == 3
 
 
@@ -327,6 +336,7 @@ async def test_empty_actions_not_in_payload() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert "actions" not in e.calls[0].action_data
 
 
@@ -351,11 +361,12 @@ async def test_ntfy_keys_not_leaked_to_service_payload() -> None:
             "ntfy_icon": "https://example.com/icon.png",
             "ntfy_sequence_id": "seq-1",
             "ntfy_email": "test@test.com",
-            "ntfy_filename": "foto.jpg",
+            "ntfy_filename": "photo.jpg",
         },
     )
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     ad = e.calls[0].action_data
     leaked = [k for k in ad if k.startswith("ntfy_")]
     assert leaked == [], f"ntfy_* keys found in payload: {leaked}"
@@ -375,6 +386,7 @@ async def test_target_data_uses_device_id() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "abc123def456"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].target_data == {"device_id": "abc123def456"}
 
 
@@ -396,13 +408,14 @@ async def test_attach_image_with_snapshot_url() -> None:
     )
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     ad = e.calls[0].action_data
     assert "attach" in ad
     assert ad.get("filename") == "ingresso.jpg"
 
 
 async def test_attach_image_false_no_attach() -> None:
-    """ntfy_attach_image=False -> 'attach' absent, even if media is present."""
+    """ntfy_attach_image=False -> grab_image not called, 'attach' absent."""
     ctx = _ctx()
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_NTFY)
@@ -410,10 +423,13 @@ async def test_attach_image_false_no_attach() -> None:
     e = _envelope(
         ctx,
         data={"ntfy_device_id": "dev1", "ntfy_attach_image": False},
-        media={"snapshot_url": "/api/camera_proxy/camera.ingresso"},
+        media={"camera_entity_id": "camera.ingresso"},
     )
-    await uut.deliver(e)
+    with patch.object(e, "grab_image", new_callable=AsyncMock) as mock_grab:
+        await uut.deliver(e)
+        mock_grab.assert_not_called()
 
+    assert e.calls[0].action_data
     assert "attach" not in e.calls[0].action_data
 
 
@@ -426,11 +442,12 @@ async def test_attach_image_true_without_media_no_attach() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_attach_image": True})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert "attach" not in e.calls[0].action_data
 
 
-async def test_attach_image_with_camera_entity_calls_snapshot() -> None:
-    """ntfy_attach_image=True + camera_entity_id -> camera.snapshot is called."""
+async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
+    """ntfy_attach_image=True + camera_entity_id -> grab_image called, attach in payload."""
     ctx = _ctx()
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_NTFY)
@@ -440,15 +457,14 @@ async def test_attach_image_with_camera_entity_calls_snapshot() -> None:
         data={"ntfy_device_id": "dev1", "ntfy_attach_image": True},
         media={"camera_entity_id": "camera.ingresso"},
     )
-    await uut.deliver(e)
+    fake_path = Path("/config/www/supernotify/image/test.jpg")
+    with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=fake_path) as mock_grab:
+        await uut.deliver(e)
+        mock_grab.assert_called_once()
 
-    all_calls = ctx.hass.services.async_call.call_args_list  # type: ignore
-    domains_and_services = [(c[0][0], c[0][1]) for c in all_calls]
-    assert ("camera", "snapshot") in domains_and_services, "camera.snapshot not called"
-    assert ("ntfy", "publish") in domains_and_services, "ntfy.publish not called"
-
-    ntfy_call = next(c for c in all_calls if c[0][0] == "ntfy")
-    assert "attach" in ntfy_call[1]["service_data"], "'attach' missing after snapshot"
+    assert e.calls[0].action_data
+    assert "attach" in e.calls[0].action_data
+    assert e.calls[0].action_data["attach"].endswith("/local/supernotify/image/test.jpg")
 
 
 async def test_attach_image_camera_snapshot_failure_delivery_continues() -> None:
@@ -494,6 +510,7 @@ async def test_ntfy_markdown_bool_true_works() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_markdown": True})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data.get("markdown") is True
 
 
@@ -506,6 +523,7 @@ async def test_ntfy_markdown_bool_false_excluded() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_markdown": False})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert "markdown" not in e.calls[0].action_data
 
 
@@ -518,6 +536,7 @@ async def test_ntfy_markdown_string_true_is_truthy() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_markdown": "true"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert e.calls[0].action_data.get("markdown") is True
 
 
@@ -533,11 +552,12 @@ async def test_ntfy_markdown_string_false_correctly_handled() -> None:
     e = _envelope(ctx, data={"ntfy_device_id": "dev1", "ntfy_markdown": "false"})
     await uut.deliver(e)
 
+    assert e.calls[0].action_data
     assert "markdown" not in e.calls[0].action_data
 
 
 async def test_ntfy_attach_image_string_false_correctly_handled() -> None:
-    """ntfy_attach_image='false' (YAML string) -> boolify() converts to False -> no attach.
+    """ntfy_attach_image='false' (YAML string) -> boolify() converts to False -> grab_image not called.
 
     This verifies the boolify() fix: without it, bool('false') == True in Python.
     """
@@ -548,10 +568,13 @@ async def test_ntfy_attach_image_string_false_correctly_handled() -> None:
     e = _envelope(
         ctx,
         data={"ntfy_device_id": "dev1", "ntfy_attach_image": "false"},
-        media={"snapshot_url": "/api/camera_proxy/camera.test"},
+        media={"camera_entity_id": "camera.test"},
     )
-    await uut.deliver(e)
+    with patch.object(e, "grab_image", new_callable=AsyncMock) as mock_grab:
+        await uut.deliver(e)
+        mock_grab.assert_not_called()
 
+    assert e.calls[0].action_data
     assert "attach" not in e.calls[0].action_data
 
 

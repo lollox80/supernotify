@@ -158,7 +158,7 @@ class EmailTransport(Transport):
         if footer_template:
             try:
                 footer = footer_template.format(e=envelope)
-            except (KeyError, ValueError, AttributeError) as ex:
+            except (KeyError, ValueError, AttributeError) as ex:  # py3.13 compat
                 _LOGGER.warning("SUPERNOTIFY email: failed to render footer template: %s", ex)
 
         action_data: dict[str, Any] = envelope.core_action_data()
