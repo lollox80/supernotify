@@ -27,6 +27,8 @@ ntfy_actions -- supported types:
     copy:      {action: copy, label: "Copy", value: "text to copy"}
 """
 
+from __future__ import annotations
+
 import logging
 import re
 from typing import TYPE_CHECKING, Any

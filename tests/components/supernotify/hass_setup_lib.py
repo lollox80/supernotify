@@ -1,5 +1,7 @@
 """Test fixture support"""
 
+from __future__ import annotations
+
 import json
 import logging
 import uuid
@@ -422,7 +424,9 @@ def register_mobile_app(
         )
     entity_registry: EntityRegistry | None = hass_api.entity_registry()
     if entity_registry and device_entry:
-        entity_registry.async_get_or_create("device_tracker", "mobile_app", device_name, device_id=device_entry.id)
+        entity_registry.async_get_or_create(
+            "device_tracker", "mobile_app", device_name, suggested_object_id=device_slug, device_id=device_entry.id
+        )
     hass_api.build_mobile_app_cache()
     return device_entry
 

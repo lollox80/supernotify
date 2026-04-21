@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import io
+import pathlib  # noqa: TC003
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, Mock, patch
@@ -41,7 +44,6 @@ from tests.components.supernotify.doubles_lib import MockImageEntity
 from tests.components.supernotify.hass_setup_lib import MockableHomeAssistant
 
 if TYPE_CHECKING:
-    import pathlib
     from collections.abc import Generator
     from ssl import SSLContext
 

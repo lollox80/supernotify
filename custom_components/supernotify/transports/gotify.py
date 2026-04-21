@@ -35,6 +35,8 @@ Priority mapping (SuperNotify -> Gotify integer):
     critical -> 10    high -> 7    medium -> 5    low -> 2    minimum -> 0
 """
 
+from __future__ import annotations
+
 import logging
 from typing import TYPE_CHECKING, Any
 

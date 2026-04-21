@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.const import CONF_ACTION, CONF_ENABLED, CONF_TARGET
