@@ -1,3 +1,4 @@
+import asyncio
 import datetime as dt
 import logging
 import uuid
@@ -21,6 +22,7 @@ from .const import (
     ATTR_DELIVERY_SELECTION,
     ATTR_FORCE_RESEND,
     ATTR_MEDIA,
+    ATTR_MEDIA_CAMERA_ENTITY_ID,
     ATTR_MEDIA_CLIP_URL,
     ATTR_MEDIA_SNAPSHOT_URL,
     ATTR_MESSAGE_HTML,
@@ -44,6 +46,7 @@ from .const import (
     TARGET_USE_ON_NO_DELIVERY_TARGETS,
 )
 from .envelope import Envelope
+from .media_grab import grab_image
 from .model import (
     ConditionVariables,
     DebugTrace,
@@ -51,6 +54,7 @@ from .model import (
     SuppressionReason,
     Target,
     TargetRequired,
+    TransportFeature,
 )
 from .schema import ACTION_DATA_SCHEMA, STRICT_ACTION_DATA_SCHEMA, Outcome
 
@@ -369,7 +373,7 @@ class Notification(ArchivableObject):
         self._suppression_reason = reason
         if reason not in self._skip_reasons:
             self._skip_reasons.append(reason)
-        _LOGGER.info(f"SUPERNOTIFY Suppressing notification, reason:{reason}, id:{self.id}")
+        _LOGGER.info("SUPERNOTIFY Suppressing notification, reason:%s, id:%s", reason, self.id)
 
     async def deliver(self) -> bool:
         _LOGGER.debug(
@@ -379,16 +383,49 @@ class Notification(ArchivableObject):
             self.selected_deliveries,
         )
 
-        for delivery_name, details in self.selected_deliveries.items():
+        for delivery_name in self.selected_deliveries:
             self.deliveries[delivery_name] = {}
-            delivery = self.context.delivery_registry.deliveries.get(delivery_name)
-            if self._suppression_reason is not None:
-                _LOGGER.info("SUPERNOTIFY Suppressing globally silenced/snoozed notification (%s)", self.id)
+
+        if self._suppression_reason is not None:
+            _LOGGER.info("SUPERNOTIFY Suppressing globally silenced/snoozed notification (%s)", self.id)
+            for delivery_name in self.selected_deliveries:
+                delivery = self.context.delivery_registry.deliveries.get(delivery_name)
                 self.record_result(delivery, suppression_reason=SuppressionReason.SNOOZED)
-            elif delivery:
-                await self.call_transport(delivery, recipients=details.get("recipients"))
-            else:
-                _LOGGER.error(f"SUPERNOTIFY Unexpected missing delivery {delivery_name}")
+        else:
+            # Deliveries for transports that call grab_image() are deferred so that
+            # PTZ movement runs concurrently with non-image deliveries (chime, TTS, etc.)
+            camera_configured = bool(self.media.get(ATTR_MEDIA_CAMERA_ENTITY_ID) or self.media.get(ATTR_MEDIA_SNAPSHOT_URL))
+            immediate_deliveries: dict[str, dict[str, Any]] = {}
+            deferred_deliveries: dict[str, dict[str, Any]] = {}
+            for delivery_name, details in self.selected_deliveries.items():
+                d = self.context.delivery_registry.deliveries.get(delivery_name)
+                if d and camera_configured and d.transport.supported_features & TransportFeature.SNAPSHOT_IMAGE:
+                    deferred_deliveries[delivery_name] = details
+                else:
+                    immediate_deliveries[delivery_name] = details
+
+            # Start image grab immediately so PTZ runs while immediate deliveries execute
+            image_task: asyncio.Task | None = None
+            if deferred_deliveries:
+                first_delivery = self.context.delivery_registry.deliveries.get(next(iter(deferred_deliveries)))
+                if first_delivery:
+                    image_task = asyncio.create_task(grab_image(self, first_delivery, self.context))
+
+            _LOGGER.debug("SUPERNOTIFY Scheduling %s immediate deliveries", len(deferred_deliveries))
+            await self._schedule_deliveries(immediate_deliveries)
+
+            # Ensure image is ready before running image-requiring deliveries
+            if image_task is not None:
+                wait_timeout: int = 30
+                try:
+                    _LOGGER.debug("SUPERNOTIFY Waiting up to %s for image grab to complete", wait_timeout)
+                    async with asyncio.timeout(wait_timeout):  # TODO: configurable time-out
+                        await image_task
+                except Exception as e:
+                    _LOGGER.exception("SUPERNOTIFY Failed to pre-grab image: %s", e)
+
+            _LOGGER.debug("SUPERNOTIFY Scheduling %s deferred deliveries", len(deferred_deliveries))
+            await self._schedule_deliveries(deferred_deliveries)
 
         if self.delivered == 0 and not self._suppression_reason:
             if self.failed == 0 and not self.dupe:
@@ -412,6 +449,20 @@ class Notification(ArchivableObject):
                         self.fallback += 1
 
         return self.delivered > 0
+
+    async def _schedule_deliveries(self, deliveries: dict[str, dict[str, Any]]) -> None:
+        delivery_coros = []
+        for delivery_name, details in deliveries.items():
+            delivery = self.context.delivery_registry.deliveries.get(delivery_name)
+            if delivery:
+                delivery_coros.append(self.call_transport(delivery, recipients=details.get("recipients")))
+            else:
+                _LOGGER.error("SUPERNOTIFY Unexpected missing delivery %s", delivery_name)
+        if delivery_coros:
+            results = await asyncio.gather(*delivery_coros, return_exceptions=True)
+            for result in results:
+                if isinstance(result, BaseException):
+                    _LOGGER.error("SUPERNOTIFY Unexpected error in parallel delivery: %s", result)
 
     async def call_transport(self, delivery: Delivery, recipients: list[str] | None = None) -> None:
         try:

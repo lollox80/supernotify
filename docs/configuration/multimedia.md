@@ -47,6 +47,8 @@ Images can be included by:
     - For example an [MQTT Image](https://www.home-assistant.io/integrations/image.mqtt/), ideal for Frigate or cameras that stream to MQTT
 - Web Image
     - Use `snapshot_url` in the `media` section to grab from any HTTP(S) address
+- Local Image
+    - Use `snapshot_image_path` in the `media` section to grab from any file system path accessible by Home Assistant
 
 Additionally a video clip can be referenced by `clip_url` where supported by a transport (currently mobile push only).
 

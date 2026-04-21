@@ -65,6 +65,7 @@ from .transports.alexa_media_player import AlexaMediaPlayerTransport
 from .transports.chime import ChimeTransport
 from .transports.email import EmailTransport
 from .transports.generic import GenericTransport
+from .transports.gotify import GotifyTransport
 from .transports.media_player import MediaPlayerTransport
 from .transports.mobile_push import MobilePushTransport
 from .transports.mqtt import MQTTTransport
@@ -101,6 +102,7 @@ TRANSPORTS: list[type[Transport]] = [
     TTSTransport,
     NotifyEntityTransport,
     NtfyTransport,
+    GotifyTransport,
 ]  # No auto-discovery of transport plugins so manual class registration required here
 
 

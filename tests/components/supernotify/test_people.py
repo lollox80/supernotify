@@ -51,7 +51,7 @@ def test_autoresolve_mobile_devices_for_devices(
     assert mobile.model == "PyTest001"
     assert mobile.action == "notify.mobile_app_bobs_phone"
     assert mobile.mobile_app_id == "mobile_app_bobs_phone"
-    assert mobile.device_tracker == "device_tracker.mobile_app_bobs_phone"
+    assert mobile.device_tracker == "device_tracker.bobs_phone"
     assert mobile.device_id == device.id
     assert mobile.device_name == "Bobs Phone"
 
