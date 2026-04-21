@@ -52,6 +52,7 @@ dev=[
     "pre-commit",
     "pytest-httpserver",
     "ruff",
+    "codespell",
     "mypy",
     "genbadge[all]",
     # generic transport testing
