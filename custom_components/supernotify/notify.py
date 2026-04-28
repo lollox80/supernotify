@@ -74,6 +74,7 @@ from .transports.mqtt import MQTTTransport
 from .transports.notify_entity import NotifyEntityTransport
 from .transports.ntfy import NtfyTransport
 from .transports.persistent import PersistentTransport
+from .transports.pushover import PushoverTransport
 from .transports.sms import SMSTransport
 from .transports.tts import TTSTransport
 
@@ -105,6 +106,7 @@ TRANSPORTS: list[type[Transport]] = [
     NotifyEntityTransport,
     NtfyTransport,
     GotifyTransport,
+    PushoverTransport,
 ]  # No auto-discovery of transport plugins so manual class registration required here
 
 
