@@ -75,6 +75,7 @@ from .transports.notify_entity import NotifyEntityTransport
 from .transports.ntfy import NtfyTransport
 from .transports.persistent import PersistentTransport
 from .transports.sms import SMSTransport
+from .transports.telegram import TelegramTransport
 from .transports.tts import TTSTransport
 
 if TYPE_CHECKING:
@@ -105,6 +106,7 @@ TRANSPORTS: list[type[Transport]] = [
     NotifyEntityTransport,
     NtfyTransport,
     GotifyTransport,
+    TelegramTransport,
 ]  # No auto-discovery of transport plugins so manual class registration required here
 
 
