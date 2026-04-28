@@ -1,5 +1,8 @@
 # Public releases
 
+## 1.15.0
+### New transports
+- Pushover, Telegram and LaMetric, contributed by [@lollox80](https://github.com/lollox80)
 ## 1.14.1
 ### PTZ
 - Mobile Push deliveries will defer until a PTZ operation complete
