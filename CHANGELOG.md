@@ -1,5 +1,8 @@
 # Public releases
 
+## 1.14.1
+### PTZ
+- Mobile Push deliveries will defer until a PTZ operation complete
 ## 1.14.0
 ### Delivery Sequencing
 - Delivieries now use asyncio.gather to maximize parallelism

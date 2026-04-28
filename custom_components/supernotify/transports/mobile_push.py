@@ -66,6 +66,7 @@ class MobilePushTransport(Transport):
             | TransportFeature.ACTIONS
             | TransportFeature.IMAGES
             | TransportFeature.VIDEO
+            | TransportFeature.SNAPSHOT_IMAGE
         )
 
     def extra_attributes(self) -> dict[str, Any]:
