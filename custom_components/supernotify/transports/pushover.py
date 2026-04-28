@@ -74,17 +74,17 @@ _LOGGER = logging.getLogger(__name__)
 
 # SuperNotify priority -> Pushover integer (-2..2)
 _PRIORITY_MAP: dict[str, int] = {
-    "critical": 2,    # emergency - repeats until acknowledged, requires retry+expire
-    "high": 1,        # high - bypasses user quiet hours
-    "medium": 0,      # normal - standard sound and vibration
-    "low": -1,        # low - no sound and no vibration
-    "minimum": -2,    # silent - only iOS badge, no visible notification
+    "critical": 2,  # emergency - repeats until acknowledged, requires retry+expire
+    "high": 1,  # high - bypasses user quiet hours
+    "medium": 0,  # normal - standard sound and vibration
+    "low": -1,  # low - no sound and no vibration
+    "minimum": -2,  # silent - only iOS badge, no visible notification
 }
 
 _EMERGENCY_PRIORITY = 2
-_EMERGENCY_RETRY_MIN = 30         # seconds (Pushover API limit)
-_EMERGENCY_EXPIRE_MAX = 10800     # seconds (Pushover API limit = 3 hours)
-_EMERGENCY_RETRY_DEFAULT = 60     # sensible default when not specified
+_EMERGENCY_RETRY_MIN = 30  # seconds (Pushover API limit)
+_EMERGENCY_EXPIRE_MAX = 10800  # seconds (Pushover API limit = 3 hours)
+_EMERGENCY_RETRY_DEFAULT = 60  # sensible default when not specified
 _EMERGENCY_EXPIRE_DEFAULT = 3600  # sensible default when not specified (1 hour)
 
 
@@ -95,12 +95,7 @@ class PushoverTransport(Transport):
 
     @property
     def supported_features(self) -> TransportFeature:
-        return (
-            TransportFeature.MESSAGE
-            | TransportFeature.TITLE
-            | TransportFeature.IMAGES
-            | TransportFeature.SNAPSHOT_IMAGE
-        )
+        return TransportFeature.MESSAGE | TransportFeature.TITLE | TransportFeature.IMAGES | TransportFeature.SNAPSHOT_IMAGE
 
     @property
     def default_config(self) -> TransportConfig:
@@ -113,8 +108,7 @@ class PushoverTransport(Transport):
         if action and action.startswith("notify."):
             return True
         _LOGGER.warning(
-            "SUPERNOTIFY pushover: action must be a notify.* service "
-            "(e.g. notify.pushover_home), got: %r",
+            "SUPERNOTIFY pushover: action must be a notify.* service (e.g. notify.pushover_home), got: %r",
             action,
         )
         return False
@@ -144,23 +138,19 @@ class PushoverTransport(Transport):
                 priority_ovr = int(priority_ovr_raw)
                 if not -2 <= priority_ovr <= 2:
                     _LOGGER.warning(
-                        "SUPERNOTIFY pushover: pushover_priority %d out of range -2..2, "
-                        "falling back to auto mapping",
+                        "SUPERNOTIFY pushover: pushover_priority %d out of range -2..2, falling back to auto mapping",
                         priority_ovr,
                     )
                     priority_ovr = None
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 _LOGGER.warning(
-                    "SUPERNOTIFY pushover: invalid pushover_priority %r, "
-                    "falling back to auto mapping",
+                    "SUPERNOTIFY pushover: invalid pushover_priority %r, falling back to auto mapping",
                     priority_ovr_raw,
                 )
                 priority_ovr = None
 
         pushover_priority: int = (
-            priority_ovr
-            if priority_ovr is not None
-            else _PRIORITY_MAP.get(envelope.priority or "medium", 0)
+            priority_ovr if priority_ovr is not None else _PRIORITY_MAP.get(envelope.priority or "medium", 0)
         )
 
         # --- Base action data (includes message and title) ---
@@ -177,7 +167,7 @@ class PushoverTransport(Transport):
             else:
                 try:
                     retry_val = int(retry_raw)
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     _LOGGER.warning(
                         "SUPERNOTIFY pushover: invalid pushover_retry %r, using default %ds",
                         retry_raw,
@@ -191,24 +181,27 @@ class PushoverTransport(Transport):
             else:
                 try:
                     expire_val = int(expire_raw)
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     _LOGGER.warning(
                         "SUPERNOTIFY pushover: invalid pushover_expire %r, using default %ds",
-                        expire_raw, _EMERGENCY_EXPIRE_DEFAULT,
+                        expire_raw,
+                        _EMERGENCY_EXPIRE_DEFAULT,
                     )
                     expire_val = _EMERGENCY_EXPIRE_DEFAULT
 
             if retry_val < _EMERGENCY_RETRY_MIN:
                 _LOGGER.warning(
                     "SUPERNOTIFY pushover: emergency retry %ds < minimum %ds, clamping",
-                    retry_val, _EMERGENCY_RETRY_MIN,
+                    retry_val,
+                    _EMERGENCY_RETRY_MIN,
                 )
                 retry_val = _EMERGENCY_RETRY_MIN
 
             if expire_val > _EMERGENCY_EXPIRE_MAX:
                 _LOGGER.warning(
                     "SUPERNOTIFY pushover: emergency expire %ds > maximum %ds, clamping",
-                    expire_val, _EMERGENCY_EXPIRE_MAX,
+                    expire_val,
+                    _EMERGENCY_EXPIRE_MAX,
                 )
                 expire_val = _EMERGENCY_EXPIRE_MAX
 
@@ -236,10 +229,8 @@ class PushoverTransport(Transport):
         if ttl_raw is not None:
             try:
                 push_data["ttl"] = int(ttl_raw)
-            except (TypeError, ValueError):
-                _LOGGER.warning(
-                    "SUPERNOTIFY pushover: invalid pushover_ttl %r, ignored", ttl_raw
-                )
+            except TypeError, ValueError:
+                _LOGGER.warning("SUPERNOTIFY pushover: invalid pushover_ttl %r, ignored", ttl_raw)
         if device:
             push_data["device"] = device
 
