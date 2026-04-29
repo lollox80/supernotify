@@ -145,7 +145,7 @@ class PushoverTransport(Transport):
                         priority_ovr,
                     )
                     priority_ovr = None
-            except TypeError, ValueError:
+            except TypeError, ValueError:  # py3.13 compat
                 _LOGGER.warning(
                     "SUPERNOTIFY pushover: invalid pushover_priority %r, falling back to auto mapping",
                     priority_ovr_raw,
