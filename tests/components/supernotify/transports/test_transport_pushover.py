@@ -152,7 +152,7 @@ async def test_priority_mapping(sn_priority: str, expected_pushover_priority: in
 
     # For critical, patch grab_image and the service call to avoid emergency-mode loop
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(ctx, priority=sn_priority)
@@ -214,7 +214,7 @@ async def test_emergency_auto_retry_expire() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(ctx, priority=PRIORITY_CRITICAL)
@@ -233,7 +233,7 @@ async def test_emergency_explicit_retry_expire() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(
@@ -255,7 +255,7 @@ async def test_emergency_retry_clamped_to_minimum() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(
@@ -275,7 +275,7 @@ async def test_emergency_expire_clamped_to_maximum() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(
@@ -295,7 +295,7 @@ async def test_emergency_callback_included() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(
@@ -479,7 +479,7 @@ async def test_attach_image_calls_grab_image() -> None:
     mock_path.__str__.return_value = "/config/www/supernotify_pushover_snap.jpg"
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=mock_path),
     ) as mock_grab:
         e = _envelope(ctx, data={"pushover_attach_image": True})
@@ -497,7 +497,7 @@ async def test_attach_image_grab_returns_none_no_attachment() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ):
         e = _envelope(ctx, data={"pushover_attach_image": True})
@@ -513,7 +513,7 @@ async def test_attach_image_false_no_grab_call() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ) as mock_grab:
         e = _envelope(ctx, data={"pushover_attach_image": False})
@@ -531,7 +531,7 @@ async def test_attach_image_grab_exception_delivery_continues() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(side_effect=Exception("camera unreachable")),
     ):
         e = _envelope(ctx, data={"pushover_attach_image": True})
@@ -548,7 +548,7 @@ async def test_attach_image_string_yaml_true() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     with patch(
-        "custom_components.supernotify.transports.pushover.grab_image",
+        "custom_components.supernotify.envelope.Envelope.grab_image",
         new=AsyncMock(return_value=None),
     ) as mock_grab:
         e = _envelope(ctx, data={"pushover_attach_image": "true"})
