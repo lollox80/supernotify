@@ -16,7 +16,7 @@ Tested on Home Assistant 2026.3.4 with `telegram_bot` platform: polling
 
 ## Example configuration
 
-```yaml tite="Basic Configuration"
+```yaml title="Basic Configuration"
 telegram_home:
   transport: telegram
   selection: default
