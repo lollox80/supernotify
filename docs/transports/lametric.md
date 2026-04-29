@@ -4,7 +4,7 @@ tags:
   - lametric
   - IoT
 ---
-# laMetric TIME Transport Adaptor
+# LaMetric TIME Transport Adaptor
 
 ## Motivation
 

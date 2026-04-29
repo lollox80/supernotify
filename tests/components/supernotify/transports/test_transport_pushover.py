@@ -175,7 +175,7 @@ async def test_priority_override_explicit() -> None:
     )
     await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["priority"] == 1
+    assert e.calls[0].action_data["data"]["priority"] == 1  # type: ignore[index]
 
 
 async def test_priority_override_out_of_range_uses_mapping() -> None:
@@ -187,7 +187,7 @@ async def test_priority_override_out_of_range_uses_mapping() -> None:
     e = _envelope(ctx, data={"pushover_priority": 99}, priority=PRIORITY_MEDIUM)
     await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["priority"] == 0  # PRIORITY_MEDIUM -> 0
+    assert e.calls[0].action_data["data"]["priority"] == 0  # type: ignore[index] # PRIORITY_MEDIUM -> 0
 
 
 async def test_priority_override_non_numeric_uses_mapping() -> None:
@@ -199,7 +199,7 @@ async def test_priority_override_non_numeric_uses_mapping() -> None:
     e = _envelope(ctx, data={"pushover_priority": "very-high"}, priority=PRIORITY_HIGH)
     await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["priority"] == 1  # PRIORITY_HIGH -> 1
+    assert e.calls[0].action_data["data"]["priority"] == 1  # type: ignore[index] # PRIORITY_HIGH -> 1
 
 
 # ---------------------------------------------------------------------------
@@ -220,7 +220,7 @@ async def test_emergency_auto_retry_expire() -> None:
         e = _envelope(ctx, priority=PRIORITY_CRITICAL)
         await uut.deliver(e)
 
-    push_data = e.calls[0].action_data["data"]
+    push_data = e.calls[0].action_data["data"]  # type: ignore[index]
     assert push_data["priority"] == 2
     assert push_data["retry"] == 60
     assert push_data["expire"] == 3600
@@ -243,7 +243,7 @@ async def test_emergency_explicit_retry_expire() -> None:
         )
         await uut.deliver(e)
 
-    push_data = e.calls[0].action_data["data"]
+    push_data = e.calls[0].action_data["data"]  # type: ignore[index]
     assert push_data["retry"] == 120
     assert push_data["expire"] == 7200
 
@@ -265,7 +265,7 @@ async def test_emergency_retry_clamped_to_minimum() -> None:
         )
         await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["retry"] == 30
+    assert e.calls[0].action_data["data"]["retry"] == 30  # type: ignore[index]
 
 
 async def test_emergency_expire_clamped_to_maximum() -> None:
@@ -285,7 +285,7 @@ async def test_emergency_expire_clamped_to_maximum() -> None:
         )
         await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["expire"] == 10800
+    assert e.calls[0].action_data["data"]["expire"] == 10800  # type: ignore[index]
 
 
 async def test_emergency_callback_included() -> None:
@@ -305,7 +305,7 @@ async def test_emergency_callback_included() -> None:
         )
         await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["callback"] == "https://homeassistant.local/api/webhook/ack"
+    assert e.calls[0].action_data["data"]["callback"] == "https://homeassistant.local/api/webhook/ack"  # type: ignore[index]
 
 
 async def test_non_emergency_no_retry_expire() -> None:
@@ -317,7 +317,7 @@ async def test_non_emergency_no_retry_expire() -> None:
     e = _envelope(ctx, priority=PRIORITY_HIGH)
     await uut.deliver(e)
 
-    push_data = e.calls[0].action_data["data"]
+    push_data = e.calls[0].action_data["data"]  # type: ignore[index]
     assert "retry" not in push_data
     assert "expire" not in push_data
     assert "callback" not in push_data
@@ -347,7 +347,7 @@ async def test_deliver_all_optional_fields() -> None:
     )
     await uut.deliver(e)
 
-    push_data = e.calls[0].action_data["data"]
+    push_data = e.calls[0].action_data["data"]  # type: ignore[index]
     assert push_data["sound"] == "siren"
     assert push_data["url"] == "https://homeassistant.local:8123"
     assert push_data["url_title"] == "Open HA"
@@ -365,7 +365,7 @@ async def test_html_flag_maps_to_integer_1() -> None:
     e = _envelope(ctx, data={"pushover_html": True})
     await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["html"] == 1
+    assert e.calls[0].action_data["data"]["html"] == 1  # type: ignore[index]
 
 
 async def test_html_false_not_in_payload() -> None:
@@ -377,7 +377,7 @@ async def test_html_false_not_in_payload() -> None:
     e = _envelope(ctx, data={"pushover_html": False})
     await uut.deliver(e)
 
-    assert "html" not in e.calls[0].action_data["data"]
+    assert "html" not in e.calls[0].action_data["data"]  # type: ignore[index]
 
 
 async def test_html_string_yaml_true() -> None:
@@ -389,7 +389,7 @@ async def test_html_string_yaml_true() -> None:
     e = _envelope(ctx, data={"pushover_html": "true"})
     await uut.deliver(e)
 
-    assert e.calls[0].action_data["data"]["html"] == 1
+    assert e.calls[0].action_data["data"]["html"] == 1  # type: ignore[index]
 
 
 async def test_html_string_yaml_false() -> None:
@@ -401,7 +401,7 @@ async def test_html_string_yaml_false() -> None:
     e = _envelope(ctx, data={"pushover_html": "false"})
     await uut.deliver(e)
 
-    assert "html" not in e.calls[0].action_data["data"]
+    assert "html" not in e.calls[0].action_data["data"]  # type: ignore[index]
 
 
 async def test_ttl_invalid_type_ignored() -> None:
@@ -413,7 +413,7 @@ async def test_ttl_invalid_type_ignored() -> None:
     e = _envelope(ctx, data={"pushover_ttl": "not-a-number"})
     await uut.deliver(e)
 
-    assert "ttl" not in e.calls[0].action_data["data"]
+    assert "ttl" not in e.calls[0].action_data["data"]  # type: ignore[index]
 
 
 async def test_optional_fields_absent_when_not_set() -> None:
@@ -425,7 +425,7 @@ async def test_optional_fields_absent_when_not_set() -> None:
     e = _envelope(ctx)
     await uut.deliver(e)
 
-    push_data = e.calls[0].action_data["data"]
+    push_data = e.calls[0].action_data["data"]  # type: ignore[index]
     for key in ("sound", "url", "url_title", "html", "ttl", "device", "attachment", "callback"):
         assert key not in push_data, f"Field '{key}' should not be in the payload"
 
@@ -458,8 +458,8 @@ async def test_pushover_keys_not_leaked_to_service_payload() -> None:
 
     ad = e.calls[0].action_data
     # Check both the top level and the nested data
-    leaked_top = [k for k in ad if k.startswith("pushover_")]
-    leaked_data = [k for k in ad.get("data", {}) if k.startswith("pushover_")]
+    leaked_top = [k for k in ad if k.startswith("pushover_")]  # type: ignore[union-attr]
+    leaked_data = [k for k in ad.get("data", {}) if k.startswith("pushover_")]  # type: ignore[union-attr]
     assert leaked_top == [], f"pushover_* keys at top level: {leaked_top}"
     assert leaked_data == [], f"pushover_* keys in nested data: {leaked_data}"
 
@@ -476,7 +476,7 @@ async def test_attach_image_calls_grab_image() -> None:
     uut = ctx.transport(TRANSPORT_PUSHOVER)
 
     mock_path = MagicMock()
-    mock_path.__str__.return_value = "/config/www/supernotify_pushover_snap.jpg"
+    mock_path.__str__.return_value = "/config/www/supernotify_pushover_snap.jpg"  # type: ignore[attr-defined]
 
     with patch(
         "custom_components.supernotify.envelope.Envelope.grab_image",
@@ -487,7 +487,7 @@ async def test_attach_image_calls_grab_image() -> None:
 
         mock_grab.assert_called_once()
 
-    assert e.calls[0].action_data["data"]["attachment"] == "/config/www/supernotify_pushover_snap.jpg"
+    assert e.calls[0].action_data["data"]["attachment"] == "/config/www/supernotify_pushover_snap.jpg"  # type: ignore[index]
 
 
 async def test_attach_image_grab_returns_none_no_attachment() -> None:
@@ -503,7 +503,7 @@ async def test_attach_image_grab_returns_none_no_attachment() -> None:
         e = _envelope(ctx, data={"pushover_attach_image": True})
         await uut.deliver(e)
 
-    assert "attachment" not in e.calls[0].action_data["data"]
+    assert "attachment" not in e.calls[0].action_data["data"]  # type: ignore[index]
 
 
 async def test_attach_image_false_no_grab_call() -> None:
@@ -521,7 +521,7 @@ async def test_attach_image_false_no_grab_call() -> None:
 
         mock_grab.assert_not_called()
 
-    assert "attachment" not in e.calls[0].action_data["data"]
+    assert "attachment" not in e.calls[0].action_data["data"]  # type: ignore[index]
 
 
 async def test_attach_image_grab_exception_delivery_continues() -> None:
@@ -538,7 +538,7 @@ async def test_attach_image_grab_exception_delivery_continues() -> None:
         result = await uut.deliver(e)
 
     assert result is True
-    assert "attachment" not in e.calls[0].action_data["data"]
+    assert "attachment" not in e.calls[0].action_data["data"]  # type: ignore[index]
 
 
 async def test_attach_image_string_yaml_true() -> None:

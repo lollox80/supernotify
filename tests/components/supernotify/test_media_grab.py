@@ -396,7 +396,7 @@ def test_select_untracked_alt_camera(mock_hass_api) -> None:
 
 async def test_media_storage(mock_hass_api: HomeAssistantAPI, tmp_path) -> None:
 
-    uut = MediaStorage(tmp_path, 7)
+    uut = MediaStorage(tmp_path, None, 7)
     await uut.initialize(mock_hass_api)
     old_time = Mock(return_value=Mock(st_ctime=time.time() - (8 * 24 * 60 * 60)))
     new_time = Mock(return_value=Mock(st_ctime=time.time() - (5 * 24 * 60 * 60)))
@@ -662,7 +662,7 @@ async def test_media_storage_size_no_path(mock_hass_api: HomeAssistantAPI) -> No
 
 
 async def test_media_storage_cleanup_zero_days(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:
-    uut = MediaStorage(str(tmp_aiopath), 0)
+    uut = MediaStorage(str(tmp_aiopath), None, 0)
     assert await uut.cleanup() == 0
 
 
@@ -672,7 +672,7 @@ async def test_media_storage_cleanup_no_path(mock_hass_api: HomeAssistantAPI) ->
 
 
 async def test_media_storage_cleanup_scandir_exception(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:
-    uut = MediaStorage(str(tmp_aiopath), 7)
+    uut = MediaStorage(str(tmp_aiopath), None, 7)
     await uut.initialize(mock_hass_api)
     with patch("aiofiles.os.scandir", side_effect=OSError("disk error")):
         count = await uut.cleanup(force=True)
@@ -681,6 +681,6 @@ async def test_media_storage_cleanup_scandir_exception(mock_hass_api: HomeAssist
 
 async def test_media_storage_cleanup_nonexistent_path(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:
     nonexistent = tmp_aiopath / "nope"
-    uut = MediaStorage(str(nonexistent), 7)
+    uut = MediaStorage(str(nonexistent), None, 7)
     uut.media_path = anyio.Path(nonexistent)  # set without initializing (so path doesn't exist on disk)
     assert await uut.cleanup(force=True) == 0
