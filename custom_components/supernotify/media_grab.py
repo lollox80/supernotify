@@ -39,6 +39,7 @@ from custom_components.supernotify.const import (
     OPTION_PNG,
     PTZ_METHOD_FRIGATE,
     PTZ_METHOD_ONVIF,
+    SUPERNOTIFY_MEDIA_URL_PREFIX,
 )
 
 if TYPE_CHECKING:
@@ -49,6 +50,17 @@ if TYPE_CHECKING:
     from .hass_api import HomeAssistantAPI
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def path_to_url(image_path: Path, hass_api: HomeAssistantAPI) -> str | None:
+    """Convert a local image path to an externally accessible URL via the registered static path."""
+    if not hass_api.media_web_path:
+        return None
+    try:
+        relative = image_path.relative_to(hass_api.media_web_path)
+        return hass_api.abs_url(f"{SUPERNOTIFY_MEDIA_URL_PREFIX}/{relative}")
+    except ValueError:
+        return None
 
 
 class ReprocessOption(StrEnum):
@@ -446,8 +458,9 @@ async def write_image_from_bitmap(
 
 
 class MediaStorage:
-    def __init__(self, media_path: str | None, days: int = 7) -> None:
+    def __init__(self, media_path: str | None, media_web_path: str | None = None, days: int = 7) -> None:
         self.media_path: Path | None = Path(media_path) if media_path else None
+        self.media_web_path = media_web_path
         self.last_purge: dt.datetime | None = None
         self.purge_minute_interval = 60 * 6
         self.days = days
@@ -468,6 +481,9 @@ class MediaStorage:
                 self.media_path = None
         if self.media_path is not None:
             _LOGGER.info("SUPERNOTIFY abs media path: %s", await self.media_path.absolute())
+
+        if self.media_web_path:
+            await hass_api.register_web_path(self.media_web_path)
 
     async def size(self) -> int:
         path: Path | None = self.media_path

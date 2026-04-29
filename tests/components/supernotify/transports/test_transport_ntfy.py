@@ -457,6 +457,7 @@ async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
         data={"ntfy_device_id": "dev1", "ntfy_attach_image": True},
         media={"camera_entity_id": "camera.ingresso"},
     )
+    uut.hass_api.media_web_path = "/config/www/supernotify"
     fake_path = Path("/config/www/supernotify/image/test.jpg")
     with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=fake_path) as mock_grab:
         await uut.deliver(e)
@@ -464,7 +465,7 @@ async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
 
     assert e.calls[0].action_data
     assert "attach" in e.calls[0].action_data
-    assert e.calls[0].action_data["attach"].endswith("/local/supernotify/image/test.jpg")
+    assert e.calls[0].action_data["attach"].endswith("/supernotify-media/image/test.jpg")
 
 
 async def test_attach_image_camera_snapshot_failure_delivery_continues() -> None:

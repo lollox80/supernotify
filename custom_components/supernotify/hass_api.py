@@ -50,7 +50,7 @@ from homeassistant.helpers.trace import trace_get, trace_path
 from homeassistant.helpers.typing import ConfigType
 
 from . import DOMAIN
-from .const import CONF_DEVICE_LABELS, CONF_DEVICE_TRACKER, CONF_MOBILE_APP_ID
+from .const import CONF_DEVICE_LABELS, CONF_DEVICE_TRACKER, CONF_MOBILE_APP_ID, SUPERNOTIFY_MEDIA_URL_PREFIX
 from .model import ConditionVariables, SelectionRule
 
 if TYPE_CHECKING:
@@ -114,6 +114,7 @@ class HomeAssistantAPI:
         self._hass: HomeAssistant = hass
         self.internal_url: str = ""
         self.external_url: str = ""
+        self.media_web_path: str | None = None
         self.language: str = ""
         self.hass_name: str = "!UNDEFINED!"
         self._entity_registry: er.EntityRegistry | None = None
@@ -331,6 +332,18 @@ class HomeAssistantAPI:
 
     def template(self, template_format: str) -> Template:
         return Template(template_format, self._hass)
+
+    async def register_web_path(self, media_web_path: str) -> bool:
+        try:
+            from homeassistant.components.http import StaticPathConfig
+
+            await self._hass.http.async_register_static_paths([
+                StaticPathConfig(SUPERNOTIFY_MEDIA_URL_PREFIX, media_web_path, cache_headers=False)
+            ])
+            return True
+        except Exception as e:
+            _LOGGER.error("SUPERNOTIFY Unable to register media web exposed path for %s: %s", media_web_path, e)
+        return False
 
     async def trace_conditions(
         self,

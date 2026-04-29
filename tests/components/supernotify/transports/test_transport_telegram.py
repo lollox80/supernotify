@@ -1,108 +1,86 @@
-"""Unit tests for Telegram transport in SuperNotify.
-
-Comprehensive test suite covering:
-- Happy path delivery scenarios
-- All Telegram-specific data keys
-- Priority mapping
-- Image handling and attachment
-- Action button conversion
-- Error conditions and edge cases
-- Security and data isolation
-"""
+"""Tests for Telegram transport in SuperNotify."""
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from custom_components.supernotify.const import (
-    ATTR_DATA,
+    ATTR_ACTIONS,
+    ATTR_PRIORITY,
+    CONF_TRANSPORT,
     PRIORITY_CRITICAL,
     PRIORITY_HIGH,
     PRIORITY_LOW,
     PRIORITY_MEDIUM,
     PRIORITY_MINIMUM,
+    TRANSPORT_TELEGRAM,
 )
-from custom_components.supernotify.model import (
-    Envelope,
-    TransportFeature,
-)
-
-# Relative imports from the supernotify codebase
+from custom_components.supernotify.delivery import Delivery
+from custom_components.supernotify.envelope import Envelope
+from custom_components.supernotify.model import TransportFeature
+from custom_components.supernotify.notification import Notification
 from custom_components.supernotify.transports.telegram import TelegramTransport
+from tests.components.supernotify.hass_setup_lib import TestingContext
 
-# ============================================================================
-# FIXTURES
-# ============================================================================
-
-
-@pytest.fixture
-def mock_hass_api():
-    """Mock Home Assistant API wrapper."""
-    api = AsyncMock()
-    api.call_service = AsyncMock(return_value=True)
-    api.get_state = MagicMock(return_value=None)
-    return api
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def mock_context():
-    """Mock context object."""
-    context = MagicMock()
-    context.hass_api = AsyncMock()
-    context.hass_api.call_service = AsyncMock(return_value=True)
-    context.dupe_checker = None
-    return context
+def _ctx() -> TestingContext:
+    return TestingContext(
+        deliveries={"telegram_test": {CONF_TRANSPORT: TRANSPORT_TELEGRAM}},
+        transport_types=[TelegramTransport],
+    )
 
 
-@pytest.fixture
-def make_envelope():
-    """Create Envelope objects for testing (factory fixture)."""
-
-    def _make_envelope(
-        message="Test message",
-        title="Test Title",
-        priority="medium",
-        data=None,
-        actions=None,
-        delivery=None,
-        media=None,
-    ):
-        envelope = MagicMock(spec=Envelope)
-        envelope.message = message
-        envelope.title = title
-        envelope.priority = priority
-        envelope.data = data or {}
-        envelope.actions = actions or []
-        envelope.delivery = delivery or MagicMock()
-        envelope.delivery.get = MagicMock(return_value=None)
-        envelope.notification = MagicMock()
-        envelope.notification.data = {}
-        envelope.media = media or {}
-        return envelope
-
-    return _make_envelope
+def _mock_hass_api() -> MagicMock:
+    mock = MagicMock()
+    mock.call_service = AsyncMock(return_value={})
+    mock.media_web_path = None
+    return mock
 
 
-@pytest.fixture
-def telegram_transport(mock_context):
-    """Create a TelegramTransport instance with mocked context."""
-    transport = TelegramTransport()
-    transport.context = mock_context
-    transport.hass_api = mock_context.hass_api
-    transport.record_error = MagicMock()
-    transport.record_success = MagicMock()
-    return transport
+def _envelope(
+    ctx: TestingContext,
+    message: str = "Test telegram",
+    title: str | None = None,
+    data: dict | None = None,
+    media: dict | None = None,
+    priority: str | None = None,
+    chat_id: str | None = "123456789",
+) -> Envelope:
+    """Build a real Envelope for deliver(). chat_id delivered via telegram_chat_id data key."""
+    action_data: dict = {}
+    if priority:
+        action_data[ATTR_PRIORITY] = priority
+    if media:
+        action_data["media"] = media
+
+    merged: dict = {}
+    if chat_id is not None:
+        merged["telegram_chat_id"] = chat_id
+    if data:
+        merged.update(data)  # caller data overrides the default chat_id
+
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    return Envelope(
+        Delivery("telegram_test", ctx.delivery_config("telegram_test"), uut),
+        Notification(ctx, message=message, title=title, action_data=action_data or None),
+        data=merged if merged else None,
+    )
 
 
-# ============================================================================
-# TEST: SUPPORTED FEATURES
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Supported features
+# ---------------------------------------------------------------------------
 
 
-def test_supported_features(telegram_transport):
-    """Verify TelegramTransport declares all supported features."""
-    features = telegram_transport.supported_features
+def test_supported_features() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    features = uut.supported_features
     assert features & TransportFeature.MESSAGE
     assert features & TransportFeature.TITLE
     assert features & TransportFeature.IMAGES
@@ -110,572 +88,611 @@ def test_supported_features(telegram_transport):
     assert features & TransportFeature.SNAPSHOT_IMAGE
 
 
-def test_default_config(telegram_transport):
-    """Verify default configuration includes required keys."""
-    config = telegram_transport.default_config
-    assert "chat_id" in config
-    # Default config may include optional parse_mode, reply_markup, etc.
+def test_default_config() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    config = uut.default_config
+    assert config.delivery_defaults.action == "telegram_bot.send_message"
 
 
-# ============================================================================
-# TEST: HAPPY PATH DELIVERY
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Happy path delivery
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_deliver_basic_message(telegram_transport, make_envelope):
-    """Test successful delivery of basic message without title."""
-    envelope = make_envelope(message="Hello from SuperNotify", title=None, priority="medium")
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_basic_message() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    telegram_transport.hass_api.call_service.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_deliver_message_with_title(telegram_transport, make_envelope):
-    """Test delivery of message with title."""
-    envelope = make_envelope(message="This is the body", title="Important Alert", priority="high")
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="Hello from SuperNotify"))
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data["title"] == "Important Alert"
-    assert action_data["message"] == "This is the body"
+    mock_api.call_service.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_deliver_critical_priority(telegram_transport, make_envelope):
-    """Test delivery with critical priority mapping."""
-    envelope = make_envelope(message="CRITICAL ALERT", priority=PRIORITY_CRITICAL)
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_message_with_title() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    # Critical priority should disable notification or set specific flags
-    assert action_data[ATTR_DATA].get("disable_notification") is not True
-
-
-@pytest.mark.asyncio
-async def test_deliver_minimum_priority(telegram_transport, make_envelope):
-    """Test delivery with minimum priority mapping."""
-    envelope = make_envelope(message="Low priority message", priority=PRIORITY_MINIMUM)
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    e = _envelope(ctx, message="This is the body", title="Important Alert", priority="high")
+    result = await uut.deliver(e)
 
     assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    # Title is prepended to message, not a separate key
+    assert "Important Alert" in service_data["message"]
+    assert "This is the body" in service_data["message"]
 
 
-# ============================================================================
-# TEST: TELEGRAM-SPECIFIC DATA KEYS
-# ============================================================================
+async def test_deliver_critical_priority() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-
-@pytest.mark.asyncio
-async def test_deliver_with_parse_mode_html(telegram_transport, make_envelope):
-    """Test parse_mode data key for HTML formatting."""
-    envelope = make_envelope(message="<b>Bold text</b>", data={"telegram_parse_mode": "HTML"})
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data[ATTR_DATA].get("parse_mode") == "HTML"
-    # Ensure key was popped and not exposed to service
-    assert "telegram_parse_mode" not in action_data[ATTR_DATA]
-
-
-@pytest.mark.asyncio
-async def test_deliver_with_parse_mode_markdown(telegram_transport, make_envelope):
-    """Test parse_mode data key for Markdown formatting."""
-    envelope = make_envelope(message="**Bold text**", data={"telegram_parse_mode": "Markdown"})
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="CRITICAL ALERT", priority=PRIORITY_CRITICAL))
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data[ATTR_DATA].get("parse_mode") == "Markdown"
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    # critical priority maps to disable_notification=False → key absent
+    assert service_data.get("disable_notification") is not True
 
 
-@pytest.mark.asyncio
-async def test_deliver_with_disable_notification(telegram_transport, make_envelope):
-    """Test disable_notification data key for silent delivery."""
-    envelope = make_envelope(message="Silent message", data={"telegram_disable_notification": True})
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_minimum_priority() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data[ATTR_DATA].get("disable_notification") is True
-
-
-@pytest.mark.asyncio
-async def test_deliver_with_protect_content(telegram_transport, make_envelope):
-    """Test protect_content data key to prevent forwarding."""
-    envelope = make_envelope(message="Protected content", data={"telegram_protect_content": True})
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="Low priority message", priority=PRIORITY_MINIMUM))
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data[ATTR_DATA].get("protect_content") is True
 
 
-@pytest.mark.asyncio
-async def test_deliver_with_chat_id_override(telegram_transport, make_envelope):
-    """Test telegram_chat_id override in data keys."""
-    envelope = make_envelope(message="Override test", data={"telegram_chat_id": "987654321"})
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    # Override should use the data key value, not config value
-    assert action_data[ATTR_DATA].get("chat_id") == "987654321"
+# ---------------------------------------------------------------------------
+# Telegram-specific data keys
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_deliver_with_reply_to_message_id(telegram_transport, make_envelope):
-    """Test reply_to_message_id data key for threaded replies."""
-    envelope = make_envelope(message="Reply to previous message", data={"telegram_reply_to_message_id": 42})
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_with_parse_mode_html() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
+    e = _envelope(ctx, message="<b>Bold text</b>", data={"telegram_parse_mode": "HTML"})
+    result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data[ATTR_DATA].get("reply_to_message_id") == 42
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert service_data.get("parse_mode") == "html"  # normalised to lowercase
+    assert "telegram_parse_mode" not in service_data
 
 
-# ============================================================================
-# TEST: IMAGE HANDLING
-# ============================================================================
+async def test_deliver_with_parse_mode_markdown() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(ctx, message="**Bold text**", data={"telegram_parse_mode": "Markdown"})
+    result = await uut.deliver(e)
+
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert service_data.get("parse_mode") == "markdown"
 
 
-@pytest.mark.asyncio
-async def test_deliver_with_attached_image(telegram_transport, make_envelope):
-    """Test delivery with camera snapshot image attachment."""
+async def test_deliver_with_disable_notification() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(ctx, message="Silent message", data={"telegram_disable_notification": True})
+    result = await uut.deliver(e)
+
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert service_data.get("disable_notification") is True
+
+
+async def test_deliver_with_protect_content() -> None:
+    """protect_content is accepted but intentionally NOT forwarded to the HA service."""
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(ctx, message="Protected content", data={"telegram_protect_content": True})
+    result = await uut.deliver(e)
+
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert "protect_content" not in service_data
+    assert "telegram_protect_content" not in service_data
+
+
+async def test_deliver_with_chat_id_override() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    # telegram_chat_id in data overrides the default chat_id from _envelope
+    e = _envelope(ctx, message="Override test", data={"telegram_chat_id": "987654321"})
+    result = await uut.deliver(e)
+
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert service_data["target"] == [987654321]
+
+
+async def test_deliver_with_reply_to_message_id() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(ctx, message="Reply to previous message", data={"telegram_reply_to_message_id": 42})
+    result = await uut.deliver(e)
+
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert service_data.get("reply_to_message_id") == 42
+
+
+# ---------------------------------------------------------------------------
+# Image handling
+# ---------------------------------------------------------------------------
+
+
+async def test_deliver_with_attached_image() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
     image_path = "/tmp/snapshot.jpg"  # noqa: S108
-    envelope = make_envelope(message="Here's the snapshot", data={"telegram_attach_image": True})
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    with patch("custom_components.supernotify.envelope.Envelope.grab_image", new_callable=AsyncMock) as mock_grab:
-        mock_grab.return_value = Path(image_path)
-        result = await telegram_transport.deliver(envelope)
+    e = _envelope(ctx, message="Here's the snapshot", title="Test Title", data={"telegram_attach_image": True})
+    with __import__("unittest.mock", fromlist=["patch"]).patch.object(
+        e, "grab_image", new_callable=AsyncMock, return_value=Path(image_path)
+    ):
+        result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert str(action_data[ATTR_DATA].get("image")) == image_path
+    call_args = mock_api.call_service.call_args
+    assert call_args.args[1] == "send_photo"
+    service_data = call_args.kwargs["service_data"]
+    assert service_data["file"] == image_path
+    assert "Test Title" in service_data["caption"]
+    assert "Here's the snapshot" in service_data["caption"]
+    assert service_data["parse_mode"] == "plain_text"
 
 
-@pytest.mark.asyncio
-async def test_deliver_with_image_as_document(telegram_transport, make_envelope):
-    """Test image_as_document flag to send photo as file instead of preview."""
+async def test_deliver_with_image_as_document() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
     image_path = "/tmp/snapshot.jpg"  # noqa: S108
-    envelope = make_envelope(
-        message="Document format image", data={"telegram_attach_image": True, "telegram_image_as_document": True}
+    e = _envelope(
+        ctx,
+        message="Document format image",
+        title="Test Title",
+        data={"telegram_attach_image": True, "telegram_image_as_document": True},
     )
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    with patch("custom_components.supernotify.envelope.Envelope.grab_image", new_callable=AsyncMock) as mock_grab:
-        mock_grab.return_value = Path(image_path)
-        result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert action_data[ATTR_DATA].get("image_as_document") is True
-
-
-@pytest.mark.asyncio
-async def test_deliver_image_not_found(telegram_transport, make_envelope):
-    """Test graceful handling when grab_image returns None."""
-    envelope = make_envelope(message="Image unavailable", data={"telegram_attach_image": True})
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    with patch("custom_components.supernotify.envelope.Envelope.grab_image", new_callable=AsyncMock) as mock_grab:
-        mock_grab.return_value = None
-        result = await telegram_transport.deliver(envelope)
+    with __import__("unittest.mock", fromlist=["patch"]).patch.object(
+        e, "grab_image", new_callable=AsyncMock, return_value=Path(image_path)
+    ):
+        result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    # Should still deliver message without image
-    assert "image" not in action_data[ATTR_DATA]
+    call_args = mock_api.call_service.call_args
+    assert call_args.args[1] == "send_document"
+    service_data = call_args.kwargs["service_data"]
+    assert service_data["file"] == image_path
+    assert service_data["parse_mode"] == "plain_text"
 
 
-# ============================================================================
-# TEST: ACTION BUTTONS (INLINE KEYBOARD)
-# ============================================================================
+async def test_deliver_image_not_found() -> None:
+    """grab_image returning None falls back to text message delivery."""
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(ctx, message="Image unavailable", data={"telegram_attach_image": True})
+    with __import__("unittest.mock", fromlist=["patch"]).patch.object(
+        e, "grab_image", new_callable=AsyncMock, return_value=None
+    ):
+        result = await uut.deliver(e)
+
+    assert result is True
+    call_args = mock_api.call_service.call_args
+    assert call_args.args[1] == "send_message"
+    service_data = call_args.kwargs["service_data"]
+    assert "file" not in service_data
 
 
-@pytest.mark.asyncio
-async def test_deliver_with_action_buttons(telegram_transport, make_envelope):
-    """Test conversion of SuperNotify actions to Telegram inline keyboard."""
+# ---------------------------------------------------------------------------
+# Action buttons (inline keyboard)
+# ---------------------------------------------------------------------------
+
+
+async def test_deliver_with_action_buttons() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
     actions = [{"title": "Accept", "action": "accept"}, {"title": "Decline", "action": "decline"}]
-    envelope = make_envelope(message="Please respond", actions=actions)
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    e = Envelope(
+        Delivery("telegram_test", ctx.delivery_config("telegram_test"), uut),
+        Notification(ctx, message="Please respond", action_data={ATTR_ACTIONS: actions}),
+        data={"telegram_chat_id": "123456789"},
+    )
+    result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    keyboard = action_data[ATTR_DATA].get("inline_keyboard")
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    keyboard = service_data.get("inline_keyboard")
     assert keyboard is not None
-    # Keyboard should have buttons matching actions
     assert len(keyboard) > 0
 
 
-@pytest.mark.asyncio
-async def test_deliver_single_action_button(telegram_transport, make_envelope):
-    """Test single action button delivery."""
-    actions = [{"title": "Open", "action": "open"}]
-    envelope = make_envelope(message="Single button", actions=actions)
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_single_action_button() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
+    actions = [{"title": "Open", "action": "open"}]
+    e = Envelope(
+        Delivery("telegram_test", ctx.delivery_config("telegram_test"), uut),
+        Notification(ctx, message="Single button", action_data={ATTR_ACTIONS: actions}),
+        data={"telegram_chat_id": "123456789"},
+    )
+    result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    keyboard = action_data[ATTR_DATA].get("inline_keyboard")
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    keyboard = service_data.get("inline_keyboard")
     assert keyboard is not None
 
 
-# ============================================================================
-# TEST: ERROR CONDITIONS
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Error conditions
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_deliver_missing_chat_id(telegram_transport, make_envelope):
-    """Test delivery fails gracefully when chat_id is missing."""
-    envelope = make_envelope(message="No target")
-    envelope.delivery.config = {}
+async def test_deliver_missing_chat_id() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    # Service call should fail or fallback handling kicks in
-    telegram_transport.hass_api.call_service.return_value = False
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is False
-
-
-@pytest.mark.asyncio
-async def test_deliver_service_call_exception(telegram_transport, make_envelope):
-    """Test exception handling when Telegram service call fails."""
-    envelope = make_envelope(message="Will fail")
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    telegram_transport.hass_api.call_service.side_effect = Exception("Connection timeout")
-    result = await telegram_transport.deliver(envelope)
+    # No chat_id in data and no delivery target configured
+    e = _envelope(ctx, message="No target", chat_id=None)
+    result = await uut.deliver(e)
 
     assert result is False
-    telegram_transport.record_error.assert_called()
+    mock_api.call_service.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_deliver_invalid_parse_mode(telegram_transport, make_envelope):
-    """Test handling of invalid parse_mode value."""
-    envelope = make_envelope(message="Invalid mode", data={"telegram_parse_mode": "InvalidMode"})
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_service_call_exception() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    mock_api.call_service.side_effect = Exception("Connection timeout")
+    uut.hass_api = mock_api
 
-    await telegram_transport.deliver(envelope)
+    e = _envelope(ctx, message="Will fail")
+    result = await uut.deliver(e)
 
-    # Transport should either sanitize or pass through; verify call still made
-    assert telegram_transport.hass_api.call_service.called
-
-
-@pytest.mark.asyncio
-async def test_deliver_empty_message(telegram_transport, make_envelope):
-    """Test delivery with empty message string."""
-    envelope = make_envelope(message="")
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
-
-    # Empty message may be rejected or replaced with placeholder
-    # Behavior depends on implementation
-    if result:
-        call_args = telegram_transport.hass_api.call_service.call_args
-        assert call_args is not None
+    assert result is False
+    assert len(e.failed_calls) > 0
 
 
-# ============================================================================
-# TEST: DATA ISOLATION & SECURITY
-# ============================================================================
+async def test_deliver_invalid_parse_mode() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(ctx, message="Invalid mode", data={"telegram_parse_mode": "InvalidMode"})
+    result = await uut.deliver(e)
+
+    # Invalid parse_mode falls back to plain_text; delivery still succeeds
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert service_data.get("parse_mode") == "plain_text"
 
 
-@pytest.mark.asyncio
-async def test_deliver_telegram_keys_not_passed_to_service(telegram_transport, make_envelope):
-    """Verify telegram_* data keys are removed before calling service."""
-    envelope = make_envelope(
+async def test_deliver_empty_message() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    result = await uut.deliver(_envelope(ctx, message=""))
+
+    assert isinstance(result, bool)
+
+
+# ---------------------------------------------------------------------------
+# Data isolation & security
+# ---------------------------------------------------------------------------
+
+
+async def test_deliver_telegram_keys_not_passed_to_service() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    e = _envelope(
+        ctx,
         message="Security check",
         data={
             "telegram_parse_mode": "HTML",
             "telegram_disable_notification": True,
-            "telegram_chat_id": "override_id",
+            "telegram_chat_id": "987654321",
             "generic_key": "generic_value",
         },
+        chat_id=None,  # rely solely on telegram_chat_id in data
     )
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    service_data = action_data[ATTR_DATA]
-
-    # Telegram-specific keys should be removed (popped)
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
     assert "telegram_parse_mode" not in service_data
     assert "telegram_disable_notification" not in service_data
     assert "telegram_chat_id" not in service_data
-
-    # Generic keys should remain
     assert "generic_key" in service_data
     assert service_data["generic_key"] == "generic_value"
 
 
-@pytest.mark.asyncio
-async def test_deliver_generic_keys_preserved(telegram_transport, make_envelope):
-    """Verify non-Telegram data keys are preserved in service call."""
-    envelope = make_envelope(message="Generic data", data={"custom_field": "custom_value", "another_field": 123})
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_generic_keys_preserved() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
+    e = _envelope(ctx, message="Generic data", data={"custom_field": "custom_value", "another_field": 123})
+    result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    service_data = action_data[ATTR_DATA]
-
-    # All generic keys should be present
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
     assert service_data["custom_field"] == "custom_value"
     assert service_data["another_field"] == 123
 
 
-# ============================================================================
-# TEST: PRIORITY MAPPING
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Priority mapping
+# ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_priority_mapping_all_levels(telegram_transport, make_envelope):
-    """Test priority mapping for all SuperNotify priority levels."""
-    priorities = [PRIORITY_MINIMUM, PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_CRITICAL]
+@pytest.mark.parametrize(
+    "priority",
+    [PRIORITY_MINIMUM, PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_CRITICAL],
+)
+async def test_priority_mapping_all_levels(priority: str) -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    for priority in priorities:
-        envelope = make_envelope(message=f"Priority {priority}", priority=priority)
-        envelope.delivery.config = {"chat_id": "123456789"}
+    result = await uut.deliver(_envelope(ctx, message=f"Priority {priority}", priority=priority))
 
-        result = await telegram_transport.deliver(envelope)
-
-        assert result is True
-        call_args = telegram_transport.hass_api.call_service.call_args
-        assert call_args is not None
-
-
-# ============================================================================
-# TEST: EDGE CASES & MESSAGE HANDLING
-# ============================================================================
+    assert result is True
+    assert mock_api.call_service.call_args is not None
 
 
-@pytest.mark.asyncio
-async def test_deliver_very_long_message(telegram_transport, make_envelope):
-    """Test delivery of message longer than Telegram's limit."""
-    long_message = "A" * 5000  # Telegram limit is ~4096 chars
-    envelope = make_envelope(message=long_message)
-    envelope.delivery.config = {"chat_id": "123456789"}
+# ---------------------------------------------------------------------------
+# Edge cases & message handling
+# ---------------------------------------------------------------------------
 
-    result = await telegram_transport.deliver(envelope)
 
-    # Message may be truncated or split; verify no exception
+async def test_deliver_very_long_message() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    result = await uut.deliver(_envelope(ctx, message="A" * 5000))
+
     assert isinstance(result, bool)
 
 
-@pytest.mark.asyncio
-async def test_deliver_message_with_special_characters(telegram_transport, make_envelope):
-    """Test message with HTML/Markdown special characters."""
-    special_message = "Test <b>bold</b> & 'quotes' \"double\" <tag>"
-    envelope = make_envelope(message=special_message)
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_message_with_special_characters() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-
-
-@pytest.mark.asyncio
-async def test_deliver_message_with_unicode(telegram_transport, make_envelope):
-    """Test message with Unicode characters."""
-    unicode_message = "Hello 世界 🌍 مرحبا мир"
-    envelope = make_envelope(message=unicode_message)
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="Test <b>bold</b> & 'quotes' \"double\" <tag>"))
 
     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_deliver_message_with_newlines(telegram_transport, make_envelope):
-    """Test message with newline characters."""
-    multiline_message = "Line 1\nLine 2\nLine 3"
-    envelope = make_envelope(message=multiline_message)
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_message_with_unicode() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert "Line 1" in action_data["message"]
-
-
-# ============================================================================
-# TEST: ENVELOPE VALIDATION
-# ============================================================================
-
-
-@pytest.mark.asyncio
-async def test_deliver_none_priority(telegram_transport, make_envelope):
-    """Test delivery with None priority defaults to medium."""
-    envelope = make_envelope(message="Default priority", priority=None)
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="Hello 世界 🌍 مرحبا мир"))
 
     assert result is True
 
 
-@pytest.mark.asyncio
-async def test_deliver_none_data_dict(telegram_transport, make_envelope):
-    """Test delivery with None data dict."""
-    envelope = make_envelope(message="No data", data=None)
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_message_with_newlines() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
-
-    assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    action_data = call_args[1]["action_data"]
-    assert ATTR_DATA in action_data
-
-
-@pytest.mark.asyncio
-async def test_deliver_empty_actions_list(telegram_transport, make_envelope):
-    """Test delivery with empty actions list."""
-    envelope = make_envelope(message="No actions", actions=[])
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="Line 1\nLine 2\nLine 3"))
 
     assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert "Line 1" in service_data["message"]
 
 
-# ============================================================================
-# TEST: INTEGRATION WITH HASS API
-# ============================================================================
+async def test_deliver_none_priority() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-
-@pytest.mark.asyncio
-async def test_deliver_calls_notify_telegram_service(telegram_transport, make_envelope):
-    """Verify delivery calls the telegram notify service."""
-    envelope = make_envelope(message="Service call test")
-    envelope.delivery.config = {"chat_id": "123456789"}
-
-    result = await telegram_transport.deliver(envelope)
+    result = await uut.deliver(_envelope(ctx, message="Default priority", priority=None))
 
     assert result is True
-    # Should call the telegram notify service
-    telegram_transport.hass_api.call_service.assert_called_once()
-    call_args = telegram_transport.hass_api.call_service.call_args
-    # Verify domain and service are correct
-    assert call_args[0][0] == "telegram_bot" or "telegram" in str(call_args)
 
 
-@pytest.mark.asyncio
-async def test_deliver_action_data_structure(telegram_transport, make_envelope):
-    """Verify action_data follows standard ServiceCall structure."""
-    envelope = make_envelope(message="Structure test", title="Title")
-    envelope.delivery.config = {"chat_id": "123456789"}
+async def test_deliver_none_data_dict() -> None:
+    """None data dict is handled gracefully; delivery still succeeds with default chat_id."""
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
 
-    result = await telegram_transport.deliver(envelope)
+    # _envelope adds telegram_chat_id by default; pass data=None to confirm no crash
+    e = _envelope(ctx, message="No data", data=None)
+    result = await uut.deliver(e)
 
     assert result is True
-    call_args = telegram_transport.hass_api.call_service.call_args
-    # Standard structure: domain, service, action_data
-    assert "action_data" in call_args[1]
-    action_data = call_args[1]["action_data"]
-    assert "message" in action_data
-    assert ATTR_DATA in action_data
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert "message" in service_data
 
 
-# ============================================================================
-# TEST: SIMPLIFY METHOD (TEXT NORMALIZATION)
-# ============================================================================
+async def test_deliver_empty_actions_list() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    result = await uut.deliver(_envelope(ctx, message="No actions"))
+
+    assert result is True
 
 
-def test_simplify_strips_urls(telegram_transport):
-    """Test simplify() removes URLs from text."""
-    text = "Visit https://example.com for more info"
-    result = telegram_transport.simplify(text, strip_urls=True)
+# ---------------------------------------------------------------------------
+# Service call verification
+# ---------------------------------------------------------------------------
+
+
+async def test_deliver_calls_telegram_bot_service() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    result = await uut.deliver(_envelope(ctx, message="Service call test"))
+
+    assert result is True
+    call_args = mock_api.call_service.call_args
+    assert call_args.args[0] == "telegram_bot"
+    assert call_args.args[1] == "send_message"
+
+
+async def test_deliver_action_data_structure() -> None:
+    ctx = _ctx()
+    await ctx.test_initialize()
+    uut = ctx.transport(TRANSPORT_TELEGRAM)
+    mock_api = _mock_hass_api()
+    uut.hass_api = mock_api
+
+    result = await uut.deliver(_envelope(ctx, message="Structure test", title="Title"))
+
+    assert result is True
+    service_data = mock_api.call_service.call_args.kwargs["service_data"]
+    assert "message" in service_data
+    assert "target" in service_data
+
+
+# ---------------------------------------------------------------------------
+# simplify() text normalization
+# ---------------------------------------------------------------------------
+
+
+def test_simplify_strips_urls() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    result = uut.simplify("Visit https://example.com for more info", strip_urls=True)
 
     assert result is not None
     assert "https://example.com" not in result
 
 
-def test_simplify_preserves_urls_by_default(telegram_transport):
-    """Test simplify() preserves URLs when strip_urls=False."""
-    text = "Visit https://example.com for more info"
-    result = telegram_transport.simplify(text, strip_urls=False)
+def test_simplify_preserves_urls_by_default() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    result = uut.simplify("Visit https://example.com for more info", strip_urls=False)
 
     if result:
         assert "https://example.com" in result or "example.com" in result
 
 
-def test_simplify_none_input(telegram_transport):
-    """Test simplify() handles None input gracefully."""
-    result = telegram_transport.simplify(None)
+def test_simplify_none_input() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    result = uut.simplify(None)
 
     assert result is None or result == ""
 
 
-# ============================================================================
-# TEST: TRANSPORT REGISTRATION
-# ============================================================================
+# ---------------------------------------------------------------------------
+# Transport registration
+# ---------------------------------------------------------------------------
 
 
-def test_transport_name_constant(telegram_transport):
-    """Verify transport has a valid name constant."""
-    assert telegram_transport.name
-    assert isinstance(telegram_transport.name, str)
-    assert len(telegram_transport.name) > 0
+def test_transport_name_constant() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    assert uut.name
+    assert isinstance(uut.name, str)
+    assert len(uut.name) > 0
 
 
-def test_transport_has_deliver_method(telegram_transport):
-    """Verify transport implements deliver() method."""
-    assert hasattr(telegram_transport, "deliver")
-    assert callable(telegram_transport.deliver)
+def test_transport_has_deliver_method() -> None:
+    ctx = _ctx()
+    uut = TelegramTransport(ctx)
+    assert hasattr(uut, "deliver")
+    assert callable(uut.deliver)

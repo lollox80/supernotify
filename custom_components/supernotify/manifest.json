@@ -6,6 +6,7 @@
         "mobile_app",
         "mqtt",
         "smtp",
+        "http",
         "tod",
         "trace",
         "workday"

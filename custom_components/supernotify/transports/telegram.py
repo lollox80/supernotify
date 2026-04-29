@@ -147,6 +147,9 @@ class TelegramTransport(Transport):
 
     name = TRANSPORT_TELEGRAM
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     @property
     def supported_features(self) -> TransportFeature:
         return (

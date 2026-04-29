@@ -93,6 +93,9 @@ class PushoverTransport(Transport):
 
     name = TRANSPORT_PUSHOVER
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+
     @property
     def supported_features(self) -> TransportFeature:
         return TransportFeature.MESSAGE | TransportFeature.TITLE | TransportFeature.IMAGES | TransportFeature.SNAPSHOT_IMAGE

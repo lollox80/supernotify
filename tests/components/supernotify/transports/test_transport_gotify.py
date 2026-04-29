@@ -174,7 +174,7 @@ def _ctx(delivery_data: dict | None = None, action: str = "notify.gotify") -> Te
     )
 
 
-def _mock_hass_api(abs_url_base: str = "https://my.home") -> MagicMock:
+def _mock_hass_api(abs_url_base: str = "https://my.home", media_web_path: str | None = "/config/www/supernotify") -> MagicMock:
     """Crea un mock di hass_api con call_service e abs_url.
 
     Usare questo mock invece di ctx.hass.services.async_call (Lezione #7 CLAUDE.md).
@@ -182,6 +182,7 @@ def _mock_hass_api(abs_url_base: str = "https://my.home") -> MagicMock:
     mock = MagicMock()
     mock.call_service = AsyncMock(return_value={})
     mock.abs_url = MagicMock(side_effect=lambda p: f"{abs_url_base}{p}")
+    mock.media_web_path = media_web_path
     return mock
 
 
@@ -642,7 +643,7 @@ async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
     assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert "bigImageUrl" in extras["client::notification"]
-    assert extras["client::notification"]["bigImageUrl"] == "https://my.home/local/supernotify/image/test.jpg"
+    assert extras["client::notification"]["bigImageUrl"] == "https://my.home/supernotify-media/image/test.jpg"
 
 
 async def test_attach_image_false_no_snapshot_no_bigimage() -> None:
