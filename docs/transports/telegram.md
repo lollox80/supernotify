@@ -47,7 +47,7 @@ telegram_alarms:
         - text: "🔇 Snooze"
           callback_data: "snooze_alarm"
 ```
-### Example call
+## Example call
 
 ```yaml title="action: notify.supernotify"
 data:
@@ -64,7 +64,7 @@ data:
 * Low-priority notifications arrive silently
 <* Critical notifications bypass Do Not Disturb
 
-### How to get the chat_id
+## How to get the chat_id
 
 1. Start a chat with your bot on Telegram (send /start)
 2. Visit: https://api.telegram.org/bot&lt;YOUR_TOKEN&gt;/getUpdates
