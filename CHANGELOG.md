@@ -5,6 +5,11 @@
 - Pushover, Telegram and LaMetric, contributed by [@lollox80](https://github.com/lollox80)
 ### Multimedia
 - New `media_url_prefix` in platform settings to control the URL path which Home Assistant uses to expose the media directory. Make this empty to stop the directory being available via HA web UI
+### Mobile Push
+- By default, thumbnail image is captured at time of notification
+- Better Android integration
+- Multiple new tuning keys for `data` section to use Android or iOS features
+- Where they can be positively identified, iOS and Android devices are only sent `data` fields they support
 ## 1.14.1
 ### PTZ
 - Mobile Push deliveries will defer until a PTZ operation complete

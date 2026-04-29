@@ -453,6 +453,7 @@ class HomeAssistantAPI:
         return self.mobile_apps_by_tracker.get(device_tracker)
 
     def mobile_app_by_id(self, mobile_app_id: str) -> DeviceInfo | None:
+        mobile_app_id = mobile_app_id.replace("notify.", "", 1) if mobile_app_id.startswith("notify.") else mobile_app_id
         return self.mobile_apps_by_app_id.get(mobile_app_id)
 
     def mobile_app_by_device_id(self, device_id: str) -> DeviceInfo | None:

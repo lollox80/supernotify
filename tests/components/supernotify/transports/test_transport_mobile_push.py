@@ -26,7 +26,7 @@ from custom_components.supernotify.const import (
 )
 from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.envelope import Envelope
-from custom_components.supernotify.hass_api import HomeAssistantAPI
+from custom_components.supernotify.hass_api import DeviceInfo, HomeAssistantAPI
 from custom_components.supernotify.model import QualifiedTargetType, RecipientType, Target
 from custom_components.supernotify.notification import Notification
 from custom_components.supernotify.snoozer import Snooze
@@ -49,24 +49,26 @@ async def test_on_notify_mobile_push_with_media(uninitialized_unmocked_config: C
 
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_MOBILE_PUSH)
-    await uut.deliver(
-        Envelope(
-            Delivery("media_test", ctx.delivery_config("media_test"), uut),
-            Notification(
-                ctx,
-                message="hello there",
-                action_data={
-                    "media": {
-                        "camera_entity_id": "camera.porch",
-                        "camera_ptz_preset": "front-door",
-                        "clip_url": "http://my.home/clip.mp4",
+
+    with patch("custom_components.supernotify.media_grab.snap_camera", return_value=None):
+        await uut.deliver(
+            Envelope(
+                Delivery("media_test", ctx.delivery_config("media_test"), uut),
+                Notification(
+                    ctx,
+                    message="hello there",
+                    action_data={
+                        "media": {
+                            "camera_entity_id": "camera.porch",
+                            "camera_ptz_preset": "front-door",
+                            "clip_url": "http://my.home/clip.mp4",
+                        },
+                        "actions": [{"action": "URI", "title": "My Camera App", "url": "http://my.home/app1"}],
                     },
-                    "actions": [{"action": "URI", "title": "My Camera App", "url": "http://my.home/app1"}],
-                },
+                ),
+                target=Target({"mobile_app_id": ["mobile_app_new_iphone"]}),
             ),
-            target=Target({"mobile_app_id": ["mobile_app_new_iphone"]}),
-        ),
-    )
+        )
     ctx.hass.services.async_call.assert_called_with(  # type:ignore
         "notify",
         "mobile_app_new_iphone",
@@ -166,26 +168,23 @@ async def test_on_notify_mobile_push_with_critical_priority() -> None:
     await ctx.test_initialize()
     uut = ctx.transport(TRANSPORT_MOBILE_PUSH)
 
-    await uut.deliver(
-        Envelope(
-            Delivery("default", ctx.delivery_config("default"), uut),
-            Notification(
-                ctx,
-                message="hello there",
-                title="testing",
-                action_data={CONF_PRIORITY: PRIORITY_CRITICAL},
-            ),
-            target=Target({"mobile_app_id": ["mobile_app_test_user_iphone"]}),
+    with patch("custom_components.supernotify.media_grab.snap_camera", return_value=None):
+        await uut.deliver(
+            Envelope(
+                Delivery("default", ctx.delivery_config("default"), uut),
+                Notification(ctx, message="hello there", title="testing", action_data={CONF_PRIORITY: PRIORITY_CRITICAL}),
+                target=Target({"mobile_app_id": ["mobile_app_test_user_iphone"]}),
+            )
         )
-    )
     ctx.hass.services.async_call.assert_called_with(  # type:ignore
         "notify",
         "mobile_app_test_user_iphone",
         service_data={
-            "title": "testing",
             "message": "hello there",
+            "title": "testing",
             "data": {
                 "push": {"interruption-level": "critical", "sound": {"name": "default", "critical": 1, "volume": 1.0}},
+                "ttl": 0,
             },
         },
         blocking=False,
@@ -207,6 +206,7 @@ async def test_priority_interpretation(mock_hass: HomeAssistant, unmocked_config
     context = unmocked_config
     delivery_config = {"default": {CONF_TRANSPORT: TRANSPORT_MOBILE_PUSH}}
     uut = MobilePushTransport(context)
+    context.hass_api.mobile_app_by_id.return_value = DeviceInfo("id001", manufacturer="Apple", model="iPhone Fold 23")  # type: ignore[attr-defined]
     context.configure_for_tests([uut])
     await context.initialize()
     e: Envelope = Envelope(

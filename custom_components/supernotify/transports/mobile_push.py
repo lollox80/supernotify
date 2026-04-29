@@ -11,28 +11,28 @@ Priority mapping (auto, overridable via push_critical_level_ios):
     minimum   → iOS: interruption_level=passive
 
 New data keys (all optional):
-    push_critical_level_ios     str   iOS interruption_level override
+    mobile_push_critical_level      str   iOS interruption_level override
                                       ("passive","active","time-sensitive","critical")
                                       If omitted, auto-mapped from SuperNotify priority.
-    push_critical_ttl           int   Android FCM TTL in ms (0=no caching/instant).
+    mobile_push_critical_ttl        int   Android FCM TTL in ms (0=no caching/instant).
                                       Auto-set to 0 for critical priority if not set.
-    push_critical_android_priority int  Android FCM priority override (1=min, 5=max).
-    push_subtitle               str   iOS subtitle (line between title and message, iOS 10+)
-    push_notification_tag       str   Notification tag for replacement (iOS) / grouping (Android)
-    push_clear_notification     bool  Send clear_notification to dismiss previous same-tag notification.
+    mobile_push_critical_priority   int  Android FCM priority override (1=min, 5=max).
+    mobile_push_subtitle            str   iOS subtitle (line between title and message, iOS 10+)
+    mobile_push_notification_tag    str   Notification tag for replacement (iOS) / grouping (Android)
+    mobile_push_clear_notification  bool  Send clear_notification to dismiss previous same-tag notification.
                                       Requires push_notification_tag to be set.
-    push_tts_text               str   Android TTS text read aloud on device (Android 8+).
+    mobile_push_tts_text            str   Android TTS text read aloud on device (Android 8+).
                                       If omitted, push TTS is not activated.
-    push_tts_locale             str   BCP-47 language for TTS (e.g. "it-IT", "en-US").
+    mobile_push_tts_locale          str   BCP-47 language for TTS (e.g. "it-IT", "en-US").
                                       Only used when push_tts_text is set.
-    push_tts_engine             str   TTS engine package (e.g. "com.google.android.tts").
+    mobile_push_tts_engine          str   TTS engine package (e.g. "com.google.android.tts").
                                       Only used when push_tts_text is set.
-    push_command_screen_on      bool  Android: turn on device screen on delivery (Android 8+)
-    push_command_dnd            str   Android: change Do Not Disturb ("toggle","off","on")
-    push_command_ringer_mode    str   Android: change ringer mode ("silent","vibrate","normal")
-    push_channel_override       str   Android notification channel override (e.g. "alarm","general")
-    push_alarm_stream           bool  Android: route audio through alarm stream (interrupts DND/silent)
-    push_alarm_stream_max       bool  Android: alarm stream at maximum device volume
+    mobile_push_command_screen_on   bool  Android: turn on device screen on delivery (Android 8+)
+    mobile_push_command_dnd         str   Android: change Do Not Disturb ("toggle","off","on")
+    mobile_push_command_ringer_mode str   Android: change ringer mode ("silent","vibrate","normal")
+    mobile_push_channel_override    str   Android notification channel override (e.g. "alarm","general")
+    mobile_push_alarm_stream        bool  Android: route audio through alarm stream (interrupts DND/silent)
+    mobile_push_alarm_stream_max    bool  Android: alarm stream at maximum device volume
 
 """
 
@@ -81,7 +81,7 @@ from custom_components.supernotify.transport import Transport
 
 if TYPE_CHECKING:
     from custom_components.supernotify.envelope import Envelope
-    from custom_components.supernotify.hass_api import HomeAssistantAPI
+    from custom_components.supernotify.hass_api import DeviceInfo, HomeAssistantAPI
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -150,72 +150,73 @@ class MobilePushTransport(Transport):
         """
         return {
             # iOS
-            "critical_level_ios": raw_data.pop("push_critical_level_ios", None),
-            "subtitle": raw_data.pop("push_subtitle", None),
+            "critical_level_ios": raw_data.pop("mobile_push_critical_level", None),
+            "subtitle": raw_data.pop("mobile_push_subtitle", None),
             # Android critical
-            "critical_ttl": raw_data.pop("push_critical_ttl", None),
-            "critical_android_priority": raw_data.pop("push_critical_android_priority", None),
-            "channel_override": raw_data.pop("push_channel_override", None),
-            "alarm_stream": raw_data.pop("push_alarm_stream", False),
-            "alarm_stream_max": raw_data.pop("push_alarm_stream_max", False),
+            "critical_ttl": raw_data.pop("mobile_push_critical_ttl", None),
+            "critical_android_priority": raw_data.pop("mobile_push_critical_priority", None),
+            "channel_override": raw_data.pop("mobile_push_channel_override", None),
+            "alarm_stream": raw_data.pop("mobile_push_alarm_stream", False),
+            "alarm_stream_max": raw_data.pop("mobile_push_alarm_stream_max", False),
             # Android TTS
-            "tts_text": raw_data.pop("push_tts_text", None),
-            "tts_locale": raw_data.pop("push_tts_locale", None),
-            "tts_engine": raw_data.pop("push_tts_engine", None),
+            "tts_text": raw_data.pop("mobile_push_tts_text", None),
+            "tts_locale": raw_data.pop("mobile_push_tts_locale", None),
+            "tts_engine": raw_data.pop("mobile_push_tts_engine", None),
             # Android Notification Commands
-            "command_screen_on": raw_data.pop("push_command_screen_on", None),
-            "command_dnd": raw_data.pop("push_command_dnd", None),
-            "command_ringer_mode": raw_data.pop("push_command_ringer_mode", None),
+            "command_screen_on": raw_data.pop("mobile_push_command_screen_on", None),
+            "command_dnd": raw_data.pop("mobile_push_command_dnd", None),
+            "command_ringer_mode": raw_data.pop("mobile_push_command_ringer_mode", None),
             # Cross-platform
-            "notification_tag": raw_data.pop("push_notification_tag", None),
-            "clear_notification": raw_data.pop("push_clear_notification", False),
+            "notification_tag": raw_data.pop("mobile_push_notification_tag", None),
+            "clear_notification": raw_data.pop("mobile_push_clear_notification", False),
         }
 
-    def _apply_android_payload(
+    def _android_payload(
         self,
-        data: dict[str, Any],
         push_data: dict[str, Any],
         priority: str | None,
-    ) -> None:
+    ) -> dict[str, Any]:
         """Apply Android-specific fields to the notification data dict.
 
         Android fields live flat in data{}, not inside the push{} sub-dict.
         """
+        android_data: dict[str, Any] = {}
         # Channel override (Android 8+, determines sound/vibration/LED)
         if push_data["channel_override"]:
-            data["channel"] = push_data["channel_override"]
+            android_data["channel"] = push_data["channel_override"]
 
         # Alarm stream: routes audio through alarm stream, interrupts DND/silent
         if push_data["alarm_stream"]:
-            data["alarm_stream"] = True
+            android_data["alarm_stream"] = True
             if push_data["alarm_stream_max"]:
-                data["alarm_stream_max"] = True
+                android_data["alarm_stream_max"] = True
 
         # FCM TTL: auto-set to 0 for critical (instant delivery, no FCM caching)
         if push_data["critical_ttl"] is not None:
-            data["ttl"] = push_data["critical_ttl"]
+            android_data["ttl"] = push_data["critical_ttl"]
         elif priority == const.PRIORITY_CRITICAL:
-            data["ttl"] = ANDROID_CRITICAL_TTL
+            android_data["ttl"] = ANDROID_CRITICAL_TTL
 
         # FCM priority override
         if push_data["critical_android_priority"] is not None:
-            data["priority"] = push_data["critical_android_priority"]
+            android_data["priority"] = push_data["critical_android_priority"]
 
         # Android TTS: read message aloud on device (Android 8+)
         if push_data["tts_text"]:
-            data["tts_text"] = push_data["tts_text"]
+            android_data["tts_text"] = push_data["tts_text"]
             if push_data["tts_locale"]:
-                data["tts_text_language"] = push_data["tts_locale"]
+                android_data["tts_text_language"] = push_data["tts_locale"]
             if push_data["tts_engine"]:
-                data["tts_engine"] = push_data["tts_engine"]
+                android_data["tts_engine"] = push_data["tts_engine"]
 
         # Notification Commands (Android 8+)
         if push_data["command_screen_on"]:
-            data["command_screen_on"] = True
+            android_data["command_screen_on"] = True
         if push_data["command_dnd"]:
-            data["command_dnd"] = push_data["command_dnd"]
+            android_data["command_dnd"] = push_data["command_dnd"]
         if push_data["command_ringer_mode"]:
-            data["command_ringer_mode"] = push_data["command_ringer_mode"]
+            android_data["command_ringer_mode"] = push_data["command_ringer_mode"]
+        return android_data
 
     async def action_title(self, url: str, retry_timeout: int = 900) -> str | None:
         """Attempt to create a title for mobile action from the TITLE of the web page at the URL"""
@@ -259,15 +260,18 @@ class MobilePushTransport(Transport):
 
         # 3. Start with passthrough data, then layer SuperNotify fields
         data: dict[str, Any] = dict(raw_data)
+        ios_data: dict[str, Any] = {}
+
         category = data.get(ATTR_ACTION_CATEGORY, "general")
-        data.setdefault("push", {})
-        data["push"]["interruption-level"] = ios_level
+
+        ios_data.setdefault("push", {})
+        ios_data["push"]["interruption-level"] = ios_level
 
         if ios_level == "critical":
-            data["push"].setdefault("sound", {})
-            data["push"]["sound"].setdefault("name", ATTR_DEFAULT)
-            data["push"]["sound"]["critical"] = 1
-            data["push"]["sound"].setdefault("volume", 1.0)
+            ios_data["push"].setdefault("sound", {})
+            ios_data["push"]["sound"].setdefault("name", ATTR_DEFAULT)
+            ios_data["push"]["sound"]["critical"] = 1
+            ios_data["push"]["sound"].setdefault("volume", 1.0)
             # critical notifications cannot be grouped on iOS
         else:
             media = envelope.media or {}
@@ -275,11 +279,12 @@ class MobilePushTransport(Transport):
             data.setdefault("group", category or camera_entity_id_for_group or "appd")
 
         # 4. iOS extra fields
+
         if push_data["subtitle"]:
-            data["subtitle"] = push_data["subtitle"]
+            ios_data["subtitle"] = push_data["subtitle"]
 
         # 5. Android-specific fields
-        self._apply_android_payload(data, push_data, envelope.priority)
+        android_data: dict[str, Any] = self._android_payload(push_data, envelope.priority)
 
         # 6. Cross-platform: notification tag
         notification_tag = push_data["notification_tag"]
@@ -338,8 +343,17 @@ class MobilePushTransport(Transport):
         action_data[ATTR_DATA] = data
         clear_notification = bool(push_data["clear_notification"] and notification_tag)
         hits = 0
+
         for mobile_target in envelope.target.mobile_app_ids:
             full_target = mobile_target if Target.is_notify_entity(mobile_target) else f"notify.{mobile_target}"
+            mobile_info: DeviceInfo | None = self.context.hass_api.mobile_app_by_id(mobile_target)
+            if mobile_info is None:
+                data.update(android_data)
+                data.update(ios_data)
+            elif mobile_info.manufacturer != "Apple":
+                data.update(android_data)
+            else:
+                data.update(ios_data)
 
             if clear_notification:
                 # Override message to "clear_notification" to dismiss same-tag notification on device
