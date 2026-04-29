@@ -684,3 +684,21 @@ async def test_media_storage_cleanup_nonexistent_path(mock_hass_api: HomeAssista
     uut = MediaStorage(str(nonexistent), None, 7)
     uut.media_path = anyio.Path(nonexistent)  # set without initializing (so path doesn't exist on disk)
     assert await uut.cleanup(force=True) == 0
+
+
+async def test_media_storage_initialize_null_url_prefix_skips_http_registration(
+    mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path
+) -> None:
+    """media_url_prefix=None: hass_api.register_web_path must not be called."""
+    uut = MediaStorage(str(tmp_aiopath), None, 7)
+    await uut.initialize(mock_hass_api)
+    mock_hass_api.register_web_path.assert_not_called()  # type: ignore[attr-defined]
+
+
+async def test_media_storage_initialize_with_url_prefix_registers_http_path(
+    mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path
+) -> None:
+    """media_url_prefix set: hass_api.register_web_path is called once with correct args."""
+    uut = MediaStorage(str(tmp_aiopath), "/supernotify-media", 7)
+    await uut.initialize(mock_hass_api)
+    mock_hass_api.register_web_path.assert_called_once_with(uut.media_path, "/supernotify-media")  # type: ignore[attr-defined]

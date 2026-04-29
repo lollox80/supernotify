@@ -25,7 +25,6 @@ Percorso nel repo upstream: tests/components/supernotify/test_transport_gotify.p
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from anyio import Path
 from homeassistant.components.notify.const import ATTR_DATA
 from homeassistant.const import CONF_ACTION
 
@@ -554,7 +553,8 @@ async def test_gotify_attach_image_string_true_is_truthy() -> None:
         data={"gotify_attach_image": "true"},
         media={"camera_entity_id": "camera.test"},
     )
-    fake_path = Path("/config/www/supernotify/image/test.jpg")
+    assert ctx.media_storage.media_path is not None
+    fake_path = ctx.media_storage.media_path / "image/test.jpg"
     with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=fake_path):
         await uut.deliver(e)
 
@@ -634,7 +634,8 @@ async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
         data={"gotify_attach_image": True},
         media={"camera_entity_id": "camera.ingresso"},
     )
-    fake_path = Path("/config/www/supernotify/image/test.jpg")
+    assert ctx.media_storage.media_path is not None
+    fake_path = ctx.media_storage.media_path / "image/test.jpg"
     with patch.object(e, "grab_image", new_callable=AsyncMock, return_value=fake_path) as mock_grab:
         result = await uut.deliver(e)
         mock_grab.assert_called_once()
@@ -643,7 +644,7 @@ async def test_attach_image_with_camera_entity_calls_grab_image() -> None:
     assert e.calls[0].action_data
     extras = e.calls[0].action_data[ATTR_DATA]["extras"]
     assert "bigImageUrl" in extras["client::notification"]
-    assert extras["client::notification"]["bigImageUrl"] == "https://my.home/supernotify-media/image/test.jpg"
+    assert extras["client::notification"]["bigImageUrl"] == "https://my.home/supernotify/media/image/test.jpg"
 
 
 async def test_attach_image_false_no_snapshot_no_bigimage() -> None:

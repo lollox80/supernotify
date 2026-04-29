@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator
 
     import aiohttp
+    from anyio import Path
     from homeassistant.core import CALLBACK_TYPE, HomeAssistant, Service, ServiceResponse, State
     from homeassistant.helpers.entity import Entity
     from homeassistant.helpers.entity_registry import EntityRegistry
@@ -50,7 +51,7 @@ from homeassistant.helpers.trace import trace_get, trace_path
 from homeassistant.helpers.typing import ConfigType
 
 from . import DOMAIN
-from .const import CONF_DEVICE_LABELS, CONF_DEVICE_TRACKER, CONF_MOBILE_APP_ID, SUPERNOTIFY_MEDIA_URL_PREFIX
+from .const import CONF_DEVICE_LABELS, CONF_DEVICE_TRACKER, CONF_MOBILE_APP_ID
 from .model import ConditionVariables, SelectionRule
 
 if TYPE_CHECKING:
@@ -114,7 +115,6 @@ class HomeAssistantAPI:
         self._hass: HomeAssistant = hass
         self.internal_url: str = ""
         self.external_url: str = ""
-        self.media_web_path: str | None = None
         self.language: str = ""
         self.hass_name: str = "!UNDEFINED!"
         self._entity_registry: er.EntityRegistry | None = None
@@ -333,12 +333,14 @@ class HomeAssistantAPI:
     def template(self, template_format: str) -> Template:
         return Template(template_format, self._hass)
 
-    async def register_web_path(self, media_web_path: str) -> bool:
+    async def register_web_path(self, media_web_path: Path | None, url_prefix: str) -> bool:
+        if media_web_path is None:
+            return False
         try:
             from homeassistant.components.http import StaticPathConfig
 
             await self._hass.http.async_register_static_paths([
-                StaticPathConfig(SUPERNOTIFY_MEDIA_URL_PREFIX, media_web_path, cache_headers=False)
+                StaticPathConfig(url_prefix, str(media_web_path), cache_headers=False)
             ])
             return True
         except Exception as e:

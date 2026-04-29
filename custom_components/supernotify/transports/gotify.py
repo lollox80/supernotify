@@ -47,7 +47,6 @@ from custom_components.supernotify.const import (
     ATTR_MEDIA_SNAPSHOT_URL,
     TRANSPORT_GOTIFY,
 )
-from custom_components.supernotify.media_grab import path_to_url
 from custom_components.supernotify.model import (
     DebugTrace,
     TargetRequired,
@@ -132,7 +131,7 @@ class GotifyTransport(Transport):
         # --- Extract gotify_* keys (must not reach the notify service) ---
         priority_ovr_raw = raw_data.pop("gotify_priority", None)
         click_url = raw_data.pop("gotify_click", None)
-        image_url = raw_data.pop("gotify_image_url", None)
+        image_url: str | None = raw_data.pop("gotify_image_url", None)
         attach_image = boolify(raw_data.pop("gotify_attach_image", False), default=False)
         markdown = boolify(raw_data.pop("gotify_markdown", False), default=False)
         intent_url = raw_data.pop("gotify_intent_url", None)
@@ -165,7 +164,7 @@ class GotifyTransport(Transport):
             elif attach_image:
                 image_path = await envelope.grab_image()
                 if image_path:
-                    image_url = path_to_url(image_path, self.hass_api)
+                    image_url = await self.context.media_storage.object_url(image_path)
 
         # --- Build nested payload_data ---
         payload_data: dict[str, Any] = {"priority": gotify_priority}

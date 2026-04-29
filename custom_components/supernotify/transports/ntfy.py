@@ -40,7 +40,6 @@ from custom_components.supernotify.const import (
     ATTR_MEDIA_SNAPSHOT_URL,
     TRANSPORT_NTFY,
 )
-from custom_components.supernotify.media_grab import path_to_url
 from custom_components.supernotify.model import DebugTrace, TargetRequired, TransportConfig, TransportFeature
 from custom_components.supernotify.transport import Transport
 
@@ -190,7 +189,7 @@ class NtfyTransport(Transport):
             elif attach_image:
                 image_path = await envelope.grab_image()
                 if image_path:
-                    image_url = path_to_url(image_path, self.hass_api)
+                    image_url = await self.context.media_storage.object_url(image_path)
                     if image_url:
                         action_data["attach"] = image_url
                         action_data["filename"] = filename

@@ -43,7 +43,7 @@ from .const import (
     CONF_LINKS,
     CONF_MEDIA_PATH,
     CONF_MEDIA_STORAGE_DAYS,
-    CONF_MEDIA_WEB_PATH,
+    CONF_MEDIA_URL_PREFIX,
     CONF_MOBILE_DISCOVERY,
     CONF_RECIPIENTS,
     CONF_RECIPIENTS_DISCOVERY,
@@ -138,7 +138,7 @@ async def async_get_service(
         deliveries=config[CONF_DELIVERY],
         template_path=config[CONF_TEMPLATE_PATH],
         media_path=config[CONF_MEDIA_PATH],
-        media_web_path=config.get(CONF_MEDIA_WEB_PATH),
+        media_url_prefix=config.get(CONF_MEDIA_URL_PREFIX),
         archive=config[CONF_ARCHIVE],
         housekeeping=config[CONF_HOUSEKEEPING],
         mobile_discovery=config[CONF_MOBILE_DISCOVERY],
@@ -348,7 +348,7 @@ class SupernotifyAction(BaseNotificationService):
         deliveries: dict[str, dict[str, Any]] | None = None,
         template_path: str | None = None,
         media_path: str | None = None,
-        media_web_path: str | None = None,
+        media_url_prefix: str | None = None,
         archive: dict[str, Any] | None = None,
         housekeeping: dict[str, Any] | None = None,
         recipients_discovery: bool = True,
@@ -368,7 +368,7 @@ class SupernotifyAction(BaseNotificationService):
         self.housekeeping: dict[str, Any] = housekeeping or {}
         self.sent: int = 0
         hass_api = HomeAssistantAPI(hass)
-        hass_api.media_web_path = media_web_path
+
         self.context = Context(
             hass_api,
             PeopleRegistry(recipients or [], hass_api, discover=recipients_discovery, mobile_discovery=mobile_discovery),
@@ -376,7 +376,7 @@ class SupernotifyAction(BaseNotificationService):
             DeliveryRegistry(deliveries or {}, transport_configs or {}, TRANSPORTS),
             DupeChecker(dupe_check or {}),
             NotificationArchive(archive or {}, hass_api),
-            MediaStorage(media_path, self.housekeeping.get(CONF_MEDIA_STORAGE_DAYS, 7)),
+            MediaStorage(media_path, media_url_prefix=media_url_prefix, days=self.housekeeping.get(CONF_MEDIA_STORAGE_DAYS, 7)),
             Snoozer(snooze),
             links or [],
             recipients or [],
