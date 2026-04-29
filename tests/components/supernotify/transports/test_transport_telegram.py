@@ -279,7 +279,7 @@ async def test_deliver_with_attached_image(telegram_transport, make_envelope):
     envelope = make_envelope(message="Here's the snapshot", data={"telegram_attach_image": True})
     envelope.delivery.config = {"chat_id": "123456789"}
 
-    with patch("code.telegram.grab_image", new_callable=AsyncMock) as mock_grab:
+    with patch("custom_components.supernotify.envelope.Envelope.grab_image", new_callable=AsyncMock) as mock_grab:
         mock_grab.return_value = Path(image_path)
         result = await telegram_transport.deliver(envelope)
 
@@ -298,7 +298,7 @@ async def test_deliver_with_image_as_document(telegram_transport, make_envelope)
     )
     envelope.delivery.config = {"chat_id": "123456789"}
 
-    with patch("code.telegram.grab_image", new_callable=AsyncMock) as mock_grab:
+    with patch("custom_components.supernotify.envelope.Envelope.grab_image", new_callable=AsyncMock) as mock_grab:
         mock_grab.return_value = Path(image_path)
         result = await telegram_transport.deliver(envelope)
 
@@ -314,7 +314,7 @@ async def test_deliver_image_not_found(telegram_transport, make_envelope):
     envelope = make_envelope(message="Image unavailable", data={"telegram_attach_image": True})
     envelope.delivery.config = {"chat_id": "123456789"}
 
-    with patch("code.telegram.grab_image", new_callable=AsyncMock) as mock_grab:
+    with patch("custom_components.supernotify.envelope.Envelope.grab_image", new_callable=AsyncMock) as mock_grab:
         mock_grab.return_value = None
         result = await telegram_transport.deliver(envelope)
 
