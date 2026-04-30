@@ -398,16 +398,16 @@ async def test_media_storage(mock_hass_api: HomeAssistantAPI, tmp_path) -> None:
 
     uut = MediaStorage(tmp_path, None, 7)
     await uut.initialize(mock_hass_api)
-    old_time = Mock(return_value=Mock(st_ctime=time.time() - (8 * 24 * 60 * 60)))
-    new_time = Mock(return_value=Mock(st_ctime=time.time() - (5 * 24 * 60 * 60)))
-    mock_files = [
-        Mock(path="abc", stat=new_time),
-        Mock(path="def", stat=new_time),
-        Mock(path="xyz", stat=old_time),
-    ]
-    with patch("aiofiles.os.listdir", return_value=mock_files) as _scan:
+    with patch("aiofiles.os.listdir", return_value=["abc", "def", "xyz"]) as _scan:
         assert await uut.size() == 3
 
+    old_time = Mock(return_value=Mock(st_mtime=time.time() - (8 * 24 * 60 * 60)))
+    new_time = Mock(return_value=Mock(st_mtime=time.time() - (5 * 24 * 60 * 60)))
+    mock_files = [
+        Mock(path="abc", is_dir=Mock(return_value=False), is_file=Mock(return_value=True), stat=new_time),
+        Mock(path="def", is_dir=Mock(return_value=False), is_file=Mock(return_value=True), stat=new_time),
+        Mock(path="xyz", is_dir=Mock(return_value=False), is_file=Mock(return_value=True), stat=old_time),
+    ]
     with patch("aiofiles.os.scandir", return_value=mock_files) as _scan:
         with patch("aiofiles.os.unlink") as rmfr:
             await uut.cleanup()
@@ -677,6 +677,35 @@ async def test_media_storage_cleanup_scandir_exception(mock_hass_api: HomeAssist
     with patch("aiofiles.os.scandir", side_effect=OSError("disk error")):
         count = await uut.cleanup(force=True)
     assert count == 0
+
+
+async def test_media_storage_cleanup_recurses_subdirectories(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:
+    """Files in raw/ and image/ subdirs must be purged, not just top-level files."""
+    import os
+
+    uut = MediaStorage(str(tmp_aiopath), None, 7)
+    await uut.initialize(mock_hass_api)
+
+    old_mtime = time.time() - (8 * 24 * 60 * 60)
+    raw_dir = tmp_aiopath / "raw"
+    image_dir = tmp_aiopath / "image"
+    await raw_dir.mkdir()
+    await image_dir.mkdir()
+
+    old_raw = raw_dir / "old.jpg"
+    new_raw = raw_dir / "new.jpg"
+    old_img = image_dir / "old.jpg"
+    for p in (old_raw, new_raw, old_img):
+        async with aiofiles.open(p, "wb") as f:
+            await f.write(b"x")
+    os.utime(old_raw, (old_mtime, old_mtime))
+    os.utime(old_img, (old_mtime, old_mtime))
+
+    count = await uut.cleanup(force=True)
+    assert count == 2
+    assert not await old_raw.exists()
+    assert not await old_img.exists()
+    assert await new_raw.exists()
 
 
 async def test_media_storage_cleanup_nonexistent_path(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:

@@ -518,18 +518,25 @@ class MediaStorage:
 
         cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(days=days)
         cutoff = cutoff.astimezone(dt.UTC)
-        purged = 0
+        purged: int = 0
+        skipped: int = 0
         if self.media_path and await self.media_path.exists():
             try:
-                archive = await aiofiles.os.scandir(self.media_path)
-                for entry in archive:
-                    if entry.is_file() and dt_util.utc_from_timestamp(entry.stat().st_ctime) <= cutoff:
-                        _LOGGER.debug("SUPERNOTIFY Purging %s", entry.path)
-                        await aiofiles.os.unlink(Path(entry.path))
-                        purged += 1
+                queue: list[Path] = [self.media_path]
+                while queue:
+                    current = queue.pop()
+                    for entry in await aiofiles.os.scandir(current):
+                        if entry.is_dir():
+                            queue.append(Path(entry.path))
+                        elif entry.is_file() and dt_util.utc_from_timestamp(entry.stat().st_mtime) <= cutoff:
+                            _LOGGER.debug("SUPERNOTIFY Purging %s", entry.path)
+                            await aiofiles.os.unlink(Path(entry.path))
+                            purged += 1
+                        else:
+                            skipped += 1
             except Exception as e:
                 _LOGGER.warning("SUPERNOTIFY Unable to clean up media storage at %s: %s", self.media_path, e, exc_info=True)
-            _LOGGER.info("SUPERNOTIFY Purged %s media storage for cutoff %s", purged, cutoff)
+            _LOGGER.info("SUPERNOTIFY Purged %s media storage for cutoff %s, skipped %s", purged, cutoff, skipped)
             self.last_purge = dt.datetime.now(dt.UTC)
         else:
             _LOGGER.warning("SUPERNOTIFY Skipping media storage cleanup for unknown path %s", self.media_path)
