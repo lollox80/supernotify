@@ -261,7 +261,6 @@ class ChimeTransport(Transport):
     @property
     def default_config(self) -> TransportConfig:
         config = TransportConfig()
-        config.delivery_defaults.options = {}
         config.delivery_defaults.target_required = TargetRequired.OPTIONAL
         config.delivery_defaults.options = {
             OPTION_TARGET_CATEGORIES: [ATTR_ENTITY_ID, ATTR_DEVICE_ID],

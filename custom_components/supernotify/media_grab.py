@@ -475,11 +475,15 @@ class MediaStorage:
             _LOGGER.info("SUPERNOTIFY abs media path: %s", await self.media_path.absolute())
 
         if self.media_url_prefix is not None:
-            await hass_api.register_web_path(self.media_path, self.media_url_prefix)
+            if await hass_api.register_web_path(self.media_path, self.media_url_prefix):
+                _LOGGER.info("SUPERNOTIFY Media at %s available with prefixed URL %s", self.media_path, self.media_url_prefix)
+        else:
+            self.media_url_prefix = None
 
     async def object_url(self, relative_path: Path) -> str | None:
         """Convert a local image path to an externally accessible URL via the registered static path."""
-        if not self.media_url_prefix or self.media_path is None:
+        if self.media_url_prefix is None or self.media_path is None:
+            _LOGGER.debug("SUPERNOTIFY Unable to generate object_url for %s", relative_path)
             return None
         try:
             relative = relative_path.relative_to(await self.media_path.absolute())
@@ -500,9 +504,16 @@ class MediaStorage:
             and self.last_purge is not None
             and self.last_purge > dt.datetime.now(dt.UTC) - dt.timedelta(minutes=self.purge_minute_interval)
         ):
+            _LOGGER.debug(
+                "SUPERNOTIFY Media storage cleanup skipped, force: %s, last purge: %s, purge interval: %s",
+                force,
+                self.last_purge,
+                self.purge_minute_interval,
+            )
             return 0
         days = days or self.days
         if days == 0 or self.media_path is None:
+            _LOGGER.debug("SUPERNOTIFY Media storage cleanup skipped, %s days, %s", days, self.media_path)
             return 0
 
         cutoff = dt.datetime.now(dt.UTC) - dt.timedelta(days=days)
@@ -521,5 +532,5 @@ class MediaStorage:
             _LOGGER.info("SUPERNOTIFY Purged %s media storage for cutoff %s", purged, cutoff)
             self.last_purge = dt.datetime.now(dt.UTC)
         else:
-            _LOGGER.debug("SUPERNOTIFY Skipping media storage for unknown path %s", self.media_path)
+            _LOGGER.warning("SUPERNOTIFY Skipping media storage cleanup for unknown path %s", self.media_path)
         return purged

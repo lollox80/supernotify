@@ -410,6 +410,10 @@ class SupernotifyAction(BaseNotificationService):
             self.context.hass_api.subscribe_time(
                 housekeeping_schedule.hour, housekeeping_schedule.minute, housekeeping_schedule.second, self.async_nightly_tasks
             )
+        else:
+            _LOGGER.info(
+                "SUPERNOTIFY Housekeeping disabled. Storage must be manually managed if using attachments or image snapshots"
+            )
 
         self.context.hass_api.subscribe_event(EVENT_HOMEASSISTANT_STOP, self.async_shutdown)
 
