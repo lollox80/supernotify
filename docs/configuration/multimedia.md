@@ -20,9 +20,6 @@ tags:
 In order to handle attachments, Supernotify needs to temporarily store images on the file system, so some extra configuration is needed. This includes camera snapshots, a `snapshot_url`, or any other image source.
 
 * A valid `media_path` directory, usually somewhere under the main `/config` directory
-* A `media_path_share` which tells HA where to find the image if its inside `/config/media`
-  - This has a false root of `/media`, so `/config/media/supernotify` --> `/media/supernotify`
-  - Only required when passing image file system references to HA actions, like Mobile Push
 * Add this directory to the `allowlist_external_dirs` in the main HomeAssistant config
 
 ```yaml title="Supernotify Configuration"

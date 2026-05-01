@@ -6,7 +6,6 @@
 ### Multimedia
 - New `media_url_prefix` in platform settings to control the URL path which Home Assistant uses to expose the media directory. Make this empty to stop the directory being available via HA web UI
 - Fix media cleanup job handling of files in subdirectories
-- Added `media_path_share` to config to support HA referring to media by false root, e.g. an image at `/config/media/images/foo.jpeg` expected by HA to have a local path of `/media/images/foo.jpeg`
 ### Mobile Push
 - By default, thumbnail image is captured at time of notification
 - Better Android integration

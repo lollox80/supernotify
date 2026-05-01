@@ -42,7 +42,6 @@ from custom_components.supernotify.const import (
     CONF_DUPE_CHECK,
     CONF_LINKS,
     CONF_MEDIA_PATH,
-    CONF_MEDIA_PATH_SHARE,
     CONF_MEDIA_STORAGE_DAYS,
     CONF_MEDIA_URL_PREFIX,
     CONF_PERSON,
@@ -283,7 +282,6 @@ class TestingContext(Context):
         archive = NotificationArchive(self.config.get(CONF_ARCHIVE) or {}, hass_api)
         media_storage = MediaStorage(
             self.config.get(CONF_MEDIA_PATH),
-            self.config.get(CONF_MEDIA_PATH_SHARE),
             media_url_prefix=self.config.get(CONF_MEDIA_URL_PREFIX),
             days=self.config.get(CONF_MEDIA_STORAGE_DAYS, 7),
         )

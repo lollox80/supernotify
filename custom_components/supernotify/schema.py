@@ -96,7 +96,6 @@ from .const import (
     CONF_MANUFACTURER,
     CONF_MEDIA,
     CONF_MEDIA_PATH,
-    CONF_MEDIA_PATH_SHARE,
     CONF_MEDIA_STORAGE_DAYS,
     CONF_MEDIA_URL_PREFIX,
     CONF_MESSAGE,
@@ -444,7 +443,6 @@ HOUSEKEEPING_SCHEMA = vol.Schema({
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_TEMPLATE_PATH, default=TEMPLATE_DIR): cv.path,
     vol.Optional(CONF_MEDIA_PATH, default=MEDIA_DIR): cv.path,
-    vol.Optional(CONF_MEDIA_PATH_SHARE, default=MEDIA_DIR): cv.path,
     vol.Optional(CONF_MEDIA_URL_PREFIX, default="/supernotify/media"): cv.string,
     vol.Optional(CONF_ARCHIVE, default={CONF_ENABLED: False}): ARCHIVE_SCHEMA,
     vol.Optional(CONF_HOUSEKEEPING, default={}): HOUSEKEEPING_SCHEMA,
