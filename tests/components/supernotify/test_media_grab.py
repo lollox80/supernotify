@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import time
+from contextlib import chdir
 from io import BytesIO
 from os import fspath
 from typing import TYPE_CHECKING
@@ -656,6 +657,26 @@ async def test_media_storage_initialize_mkdir_fails(mock_hass_api: HomeAssistant
     mock_hass_api.raise_issue.assert_called_once()  # type: ignore
 
 
+async def test_media_share_path_relative(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:
+    uut = MediaStorage(str(tmp_aiopath), media_url_prefix="/sn/testing/media")
+    await uut.initialize(mock_hass_api)
+
+    with chdir(tmp_aiopath):
+        await Path("stuff").mkdir()
+        img = Path("stuff") / "shot.jpg"
+        await img.touch()
+        assert await uut.share_path(Path("stuff/shot.jpg")) == "/sn/testing/media/stuff/shot.jpg"
+
+
+async def test_media_share_path_abs(mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path) -> None:
+    uut = MediaStorage(str(tmp_aiopath), media_url_prefix="/sn/testing/media")
+    await uut.initialize(mock_hass_api)
+    await (tmp_aiopath / "stuff").mkdir()
+    existing: Path = tmp_aiopath / "stuff" / "shot.jpg"
+    await existing.touch()
+    assert await uut.share_path(existing) == "/sn/testing/media/stuff/shot.jpg"
+
+
 async def test_media_storage_size_no_path(mock_hass_api: HomeAssistantAPI) -> None:
     uut = MediaStorage(None)
     assert await uut.size() == 0
@@ -719,7 +740,7 @@ async def test_media_storage_initialize_null_url_prefix_skips_http_registration(
     mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path
 ) -> None:
     """media_url_prefix=None: hass_api.register_web_path must not be called."""
-    uut = MediaStorage(str(tmp_aiopath), None, media_url_prefix=None, days=7)
+    uut = MediaStorage(str(tmp_aiopath), media_url_prefix=None, days=7)
     await uut.initialize(mock_hass_api)
     mock_hass_api.register_web_path.assert_not_called()  # type: ignore[attr-defined]
 
@@ -728,6 +749,6 @@ async def test_media_storage_initialize_with_url_prefix_registers_http_path(
     mock_hass_api: HomeAssistantAPI, tmp_aiopath: Path
 ) -> None:
     """media_url_prefix set: hass_api.register_web_path is called once with correct args."""
-    uut = MediaStorage(str(tmp_aiopath), None, "/supernotify-media", 7)
+    uut = MediaStorage(str(tmp_aiopath), "/supernotify-media", 7)
     await uut.initialize(mock_hass_api)
     mock_hass_api.register_web_path.assert_called_once_with(uut.media_path, "/supernotify-media")  # type: ignore[attr-defined]

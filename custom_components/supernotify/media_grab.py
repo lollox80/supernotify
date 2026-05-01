@@ -452,7 +452,12 @@ async def write_image_from_bitmap(
 
 
 class MediaStorage:
-    def __init__(self, media_path: str | None, media_url_prefix: str | None = None, days: int = 7) -> None:
+    def __init__(
+        self,
+        media_path: str | None,
+        media_url_prefix: str | None = None,
+        days: int = 7,
+    ) -> None:
         self.media_path: Path | None = Path(media_path) if media_path else None
         self.last_purge: dt.datetime | None = None
         self.media_url_prefix = media_url_prefix
@@ -496,6 +501,24 @@ class MediaStorage:
             return self.hass_api.abs_url(f"{self.media_url_prefix}/{relative}")
         except ValueError as e:
             _LOGGER.warning("SUPERNOTIFY Invalid media path for URL %s: %s", relative_path, e)
+            return None
+
+    async def share_path(self, artefact_path: Path) -> str | None:
+        """Return the HA media-share path for a local file (e.g. '/media/images/raw/foo.jpg').
+
+        Used by mobile push: the companion app resolves share-rooted paths against the HA base URL.
+        Returns None when media_path is unconfigured or path is outside the media tree.
+        """
+        if self.media_path is None or self.media_url_prefix is None:
+            return None
+        try:
+            if artefact_path.is_absolute():
+                relative = artefact_path.relative_to(await self.media_path.absolute())
+            else:
+                relative = artefact_path
+            return str(Path(self.media_url_prefix) / relative)
+        except ValueError as e:
+            _LOGGER.debug("SUPERNOTIFY Failure creating shared media path for %s:%s", artefact_path, e)
             return None
 
     async def size(self) -> int:

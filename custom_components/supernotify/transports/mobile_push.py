@@ -303,13 +303,10 @@ class MobilePushTransport(Transport):
 
         if camera_entity_id:
             data["entity_id"] = camera_entity_id
-            # Retrieve processed camera image via envelope.grab_image() helper
-            # (v1.14.0+). Direct call to grab_image(envelope.notification, ...)
-            # would AttributeError because the attribute is private (_notification);
-            # the envelope helper accesses it correctly.
             image_path = await envelope.grab_image()
             if image_path:
-                data["image"] = str(image_path)
+                image_url = await self.context.media_storage.share_path(image_path)
+                data["image"] = image_url or str(image_path)
         if clip_url:
             data["video"] = clip_url
         if snapshot_url and "image" not in data:
