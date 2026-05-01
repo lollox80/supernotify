@@ -154,6 +154,7 @@ async def snap_camera(
     camera_entity_id: str,
     notification_id: str,
     media_path: Path,
+    media_path_share: Path | None = None,
     max_camera_wait: int = 20,
 ) -> Path | None:
     """Snap a camera and save the raw image. No reprocessing."""
@@ -166,10 +167,12 @@ async def snap_camera(
         raw_dir: Path = Path(media_path) / "raw"
         await raw_dir.mkdir(parents=True, exist_ok=True)
         raw_path = raw_dir / f"{notification_id}.jpg"
+        share_root = Path(media_path_share) if media_path_share else Path(media_path)
+        share_path = share_root / raw_path.relative_to(Path(media_path))
         await hass_api.call_service(
             "camera",
             "snapshot",
-            service_data={"entity_id": camera_entity_id, "filename": raw_path},
+            service_data={"entity_id": camera_entity_id, "filename": share_path},
             return_response=False,
             blocking=True,
         )
@@ -325,7 +328,12 @@ async def snap_notification_image(notification: Notification, context: Context) 
                 _LOGGER.debug("SUPERNOTIFY Waiting %s secs before snapping", camera_delay)
                 await asyncio.sleep(camera_delay)
             raw_path = await snap_camera(
-                context.hass_api, active_camera_entity_id, notification.id, media_path=media_path, max_camera_wait=15
+                context.hass_api,
+                active_camera_entity_id,
+                notification.id,
+                media_path=media_path,
+                media_path_share=context.media_storage.media_path_share,
+                max_camera_wait=15,
             )
             if camera_ptz_preset and camera_ptz_preset_default:
                 await move_camera_to_ptz_preset(
@@ -446,8 +454,11 @@ async def write_image_from_bitmap(
 
 
 class MediaStorage:
-    def __init__(self, media_path: str | None, media_url_prefix: str | None = None, days: int = 7) -> None:
+    def __init__(
+        self, media_path: str | None, media_path_share: str | None = None, media_url_prefix: str | None = None, days: int = 7
+    ) -> None:
         self.media_path: Path | None = Path(media_path) if media_path else None
+        self.media_path_share: Path | None = Path(media_path_share) if media_path_share else self.media_path
         self.last_purge: dt.datetime | None = None
         self.media_url_prefix = media_url_prefix
         self.purge_minute_interval = 60 * 6
@@ -474,7 +485,7 @@ class MediaStorage:
         if self.media_path is not None:
             _LOGGER.info("SUPERNOTIFY abs media path: %s", await self.media_path.absolute())
 
-        if self.media_url_prefix is not None:
+        if self.media_url_prefix is not None and self.media_path is not None:
             if await hass_api.register_web_path(self.media_path, self.media_url_prefix):
                 _LOGGER.info("SUPERNOTIFY Media at %s available with prefixed URL %s", self.media_path, self.media_url_prefix)
         else:

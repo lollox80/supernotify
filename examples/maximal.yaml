@@ -2,7 +2,8 @@ notify:
   - name: maximal
     platform: supernotify
     template_path: config/templates/supernotify
-    media_path: config/media/supernotify
+    media_path: /config/media/supernotify
+    media_path_share: /media/supernotify
     media_url_prefix: /supernotify/media
     recipients_discovery: true
     mobile_discovery: true
