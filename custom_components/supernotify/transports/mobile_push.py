@@ -299,6 +299,7 @@ class MobilePushTransport(Transport):
         media = envelope.media or {}
         camera_entity_id = media.get(ATTR_MEDIA_CAMERA_ENTITY_ID)
         clip_url: str | None = self.hass_api.abs_url(media.get(ATTR_MEDIA_CLIP_URL))
+        clip_url = media.get(ATTR_MEDIA_CLIP_URL)
         snapshot_url: str | None = self.hass_api.abs_url(media.get(ATTR_MEDIA_SNAPSHOT_URL))
 
         if camera_entity_id:
@@ -309,9 +310,13 @@ class MobilePushTransport(Transport):
                 data["image"] = image_url or str(image_path)
         if clip_url:
             data["video"] = clip_url
+            _LOGGER.info("SUPERNOTIFY video url raw:", media.get(ATTR_MEDIA_CLIP_URL))
+            _LOGGER.info("SUPERNOTIFY video url abs:", self.hass_api.abs_url(media.get(ATTR_MEDIA_CLIP_URL)))
         if snapshot_url and "image" not in data:
             # Fallback: use pre-computed snapshot URL if grab_image() produced nothing
             data["image"] = snapshot_url
+            _LOGGER.info("SUPERNOTIFY snapshot url raw:", media.get(ATTR_MEDIA_SNAPSHOT_URL))
+            _LOGGER.info("SUPERNOTIFY snapshot url abs:", self.hass_api.abs_url(media.get(ATTR_MEDIA_SNAPSHOT_URL)))
 
         # 8. Actions: URL-title fetching, snooze action, action groups (unchanged)
         data.setdefault("actions", [])
