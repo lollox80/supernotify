@@ -298,25 +298,24 @@ class MobilePushTransport(Transport):
         # 7. Media: camera entity (grab processed image) + fallback URLs
         media = envelope.media or {}
         camera_entity_id = media.get(ATTR_MEDIA_CAMERA_ENTITY_ID)
-        clip_url: str | None = self.hass_api.abs_url(media.get(ATTR_MEDIA_CLIP_URL))
-        clip_url = media.get(ATTR_MEDIA_CLIP_URL)
-        snapshot_url: str | None = self.hass_api.abs_url(media.get(ATTR_MEDIA_SNAPSHOT_URL))
+        # Remove self.hass_api.abs_url for clip_url and snapshot_url
+        clip_url: str | None = media.get(ATTR_MEDIA_CLIP_URL)
+        snapshot_url: str | None = media.get(ATTR_MEDIA_SNAPSHOT_URL)
 
         if camera_entity_id:
-            data["entity_id"] = camera_entity_id
             image_path = await envelope.grab_image()
             if image_path:
                 image_url = await self.context.media_storage.share_path(image_path)
                 data["image"] = image_url or str(image_path)
+            else:
+                # fall back to letting device take the image
+                data["entity_id"] = camera_entity_id
         if clip_url:
             data["video"] = clip_url
-            _LOGGER.info("SUPERNOTIFY video url raw:", media.get(ATTR_MEDIA_CLIP_URL))
-            _LOGGER.info("SUPERNOTIFY video url abs:", self.hass_api.abs_url(media.get(ATTR_MEDIA_CLIP_URL)))
+
         if snapshot_url and "image" not in data:
             # Fallback: use pre-computed snapshot URL if grab_image() produced nothing
             data["image"] = snapshot_url
-            _LOGGER.info("SUPERNOTIFY snapshot url raw:", media.get(ATTR_MEDIA_SNAPSHOT_URL))
-            _LOGGER.info("SUPERNOTIFY snapshot url abs:", self.hass_api.abs_url(media.get(ATTR_MEDIA_SNAPSHOT_URL)))
 
         # 8. Actions: URL-title fetching, snooze action, action groups (unchanged)
         data.setdefault("actions", [])
