@@ -6,6 +6,7 @@
 ### Multimedia
 - New `media_url_prefix` in platform settings to control the URL path which Home Assistant uses to expose the media directory. Make this empty to stop the directory being available via HA web UI
 - Fix media cleanup job handling of files in subdirectories
+- Removed absolute URL transform for mobile push, so companion app can resolve with appropriate URL
 ### Mobile Push
 - By default, thumbnail image is captured at time of notification
 - Better Android integration
