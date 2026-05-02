@@ -47,3 +47,6 @@ automations:
 - Use this anywhere else you want to get multiple notification channels without changing templates
 - Simplify automations and templates by moving complex setup and rules into Supernotify, such as using a single **Scenario** to configure dozens of automations
 - Have TTS or Alexa devices announce the notification too, using the `tts`, `alexa_devices` or `alexa_media_player` integrations, or have a sound alert via an Alexa or 433Mhz doorbell chime
+
+## Problems
+- The blueprint will create a `clip.mp4` link for iOS devices, however the [Frigate API Docs](https://docs.frigate.video/integrations/api/recording-clip-camera-name-start-start-ts-end-end-ts-clip-mp-4-get) recommended not doing this for iOS compatibility reasons, and using the `m8u` action link instead.
