@@ -580,10 +580,12 @@ class DataFilter:
         result: dict[str, Any] = {}
         for key, value in data.items():
             if not self._match(key):
+                _LOGGER.debug("SUPERNOTIFY Pruning %s:%s", key, value)
                 continue
             if key in self._sub and isinstance(value, dict):
                 value = self._sub[key].apply(value, prune_empty=prune_empty)
             if prune_empty and value == {}:
+                _LOGGER.debug("SUPERNOTIFY Pruning empty %s", key)
                 continue
             result[key] = value
         return result

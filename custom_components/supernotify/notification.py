@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import json
 import logging
 import uuid
+from pathlib import Path as _Path
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, cast
 
@@ -70,6 +72,8 @@ if TYPE_CHECKING:
     )
 
 _LOGGER = logging.getLogger(__name__)
+
+_VERSION: str = json.loads((_Path(__file__).parent / "manifest.json").read_text()).get("version", "unknown")
 
 # Deliveries mapping keys for debug / archive
 KEY_DELIVERED = "delivered"
@@ -599,12 +603,13 @@ class Notification(ArchivableObject):
             "deliveries",
         ]
         # preferred fields
-        result = {
+        result: dict[str, Any] = {"version": _VERSION}
+        result.update({
             k: sanitize(
                 self.__dict__[k], minimal=minimal, occupancy_only=True, top_level_keys_only=(minimal and k in keys_only)
             )
             for k in preferred_order
-        }
+        })
         # all the rest not explicitly excluded
         result.update({
             k: sanitize(v, minimal=minimal, occupancy_only=True)
