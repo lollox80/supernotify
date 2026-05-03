@@ -9,6 +9,7 @@ from homeassistant.const import ATTR_ENTITY_ID
 
 from custom_components.supernotify.const import (
     ATTR_MOBILE_APP_ID,
+    MANUFACTURER_APPLE,
     OPTION_DEVICE_DISCOVERY,
     OPTION_DEVICE_DOMAIN,
     OPTION_DEVICE_MANUFACTURER_SELECT,
@@ -78,7 +79,7 @@ class TTSTransport(Transport):
             OPTION_TTS_ENTITY_ID: "tts.home_assistant_cloud",
             OPTION_DEVICE_DISCOVERY: False,
             OPTION_DEVICE_DOMAIN: ["mobile_app"],
-            OPTION_DEVICE_MANUFACTURER_SELECT: {SELECT_EXCLUDE: ["Apple"]},
+            OPTION_DEVICE_MANUFACTURER_SELECT: {SELECT_EXCLUDE: [MANUFACTURER_APPLE]},
         }
         return config
 
@@ -123,7 +124,7 @@ class TTSTransport(Transport):
         at_least_one: bool = False
         for target in targets:
             mobile_info: DeviceInfo | None = self.context.hass_api.mobile_app_by_id(target)
-            if not mobile_info or mobile_info.manufacturer == "Apple":
+            if not mobile_info or mobile_info.manufacturer == MANUFACTURER_APPLE:
                 _LOGGER.debug("SUPERNOTIFY Skipping tts target that isn't confirmed as android: %s", mobile_info)
             else:
                 full_target = target if Target.is_notify_entity(target) else f"notify.{target}"

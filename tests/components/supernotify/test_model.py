@@ -1,6 +1,6 @@
 from homeassistant.exceptions import HomeAssistantError
 
-from custom_components.supernotify.model import DebugTrace, SelectionRule, Target, TargetRequired
+from custom_components.supernotify.model import DataFilter, DebugTrace, SelectionRule, Target, TargetRequired
 
 from .hass_setup_lib import assert_json_round_trip
 
@@ -254,6 +254,30 @@ def test_selection_rule_match():
     uut = SelectionRule(None)
     assert uut.match("Google Pixie")
     assert uut.match("Anything")
+
+
+def test_datafilter_applies_flat_match():
+    uut = DataFilter(["good", "bad"])
+    assert uut.apply({"good": 123}) == {"good": 123}
+    assert uut.apply({"good": 123, "foo": 129}) == {"good": 123}
+    assert uut.apply({}) == {}
+    assert uut.apply({"data": {"priority": 3}, "bad": True}) == {"bad": True}
+
+
+def test_datafilter_applies_prune_empty():
+    uut = DataFilter({})
+    assert uut.apply({"data": {}}, prune_empty=True) == {}
+    assert uut.apply({"data": {}}, prune_empty=False) == {"data": {}}
+
+
+def test_datafilter_applies_nested_match():
+    uut = DataFilter({"exclude": {"foo": None, "data": {"media": {"camera": None}}}})
+    assert uut.apply({"good": 123}) == {"good": 123}
+    assert uut.apply({"good": 123, "foo": 129}) == {"good": 123}
+    assert uut.apply({}) == {}
+    assert uut.apply({"data": {"priority": 3, "media": {"camera": {"entity_id": "barncam"}, "snap": True}}}) == {
+        "data": {"priority": 3, "media": {"snap": True}}
+    }
 
 
 def test_debug_trace() -> None:

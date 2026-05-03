@@ -19,6 +19,7 @@ from .const import (
     ATTR_PRIORITY,
     ATTR_SPOKEN_MESSAGE,
     ATTR_TIMESTAMP,
+    OPTION_DATA_KEYS_SELECT,
     OPTION_MESSAGE_USAGE,
     OPTION_SIMPLIFY_TEXT,
     OPTION_STRIP_URLS,
@@ -27,6 +28,7 @@ from .const import (
 from .media_grab import grab_image
 from .model import (
     ConditionVariables,
+    DataFilter,
     DeliveryCustomization,
     MessageOnlyPolicy,
     SuppressionReason,
@@ -115,6 +117,13 @@ class Envelope(DupeCheckable):
         self.calls: list[CallRecord] = []
         self.failed_calls: list[CallRecord] = []
         self.delivery_error: list[str] | None = None
+
+    def customize_data(self, data: dict[str, Any], prune_empty: bool = True) -> dict[str, Any]:
+        """Return data filtered by delivery data_keys_select option, pruning empty maps by default."""
+        if not data:
+            return data
+        rules = self.delivery.options.get(OPTION_DATA_KEYS_SELECT)
+        return DataFilter(rules).apply(data, prune_empty=prune_empty)
 
     async def grab_image(self) -> Path | None:
         """Grab an image from a camera, snapshot URL, MQTT Image etc"""

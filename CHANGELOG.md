@@ -1,5 +1,11 @@
 # Public releases
 
+## 1.16.0
+### Mobile Push
+- Data sections can now be filtered in/out to any level of nesting
+  - Common use case - trimming out values from Frigate blueprint like `attachment` or `video` that can result in broken thumbnails for Apple notifications
+## Generic
+- The nested support for `data` filtering introduced for Mobile Push introduced also for Generic transport
 ## 1.15.0
 ### New transports
 - Pushover, Telegram and LaMetric, contributed by [@lollox80](https://github.com/lollox80)

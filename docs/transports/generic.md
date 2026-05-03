@@ -158,8 +158,7 @@ delivery:
     handle_as_domain: light
 ```
 
-Alternatively, if the custom action call is failing because of `data` elements from the notification
-it can't handle, you can control which keys are included, in this example, all keys that don't match the pattern will be dropped (test is made using Python's `re.fullmatch`):
+Alternatively, if the custom action call is failing because of `data` elements from the notification it can't handle, you can control which keys are included, in this example, all keys that don't match the pattern will be dropped (test is made using Python's `re.fullmatch`):
 
 ```yaml
 delivery:
@@ -172,8 +171,21 @@ delivery:
       - zig.*
 ```
 
-It also works the other way round, or indeed both together, with excluding, so all `data` keys
-are passed, except selected ones
+This can be more explicitly expressed with an `include` block, the shortcut style is simpler to edit and read but only works when including a simple flat list.
+
+```yaml
+delivery:
+  light_flasher:
+  action: zigzag.zig
+  options:
+    data_keys_select:
+      include:
+        - enabled
+        - value
+        - zig.*
+```
+
+It also works the other way round, or indeed both together, with excluding, so all `data` keys are passed, except selected ones
 
 ```yaml
 delivery:
@@ -185,6 +197,33 @@ delivery:
         - duration
         - volume
 ```
+
+Nested dicts (such as the `data:` block inside a Home Assistant notification `data:` section) can also be filtered at arbitrary depth. When `exclude` is a mapping, a null value excludes that key; a dict value keeps the key but recurses into it with the same tree logic:
+
+```yaml
+delivery:
+  mobile_notify:
+  action: notify.mobile_app_my_phone
+  options:
+    data_keys_select:
+      exclude:
+        data:             # descend into `data`
+          attachment:     # exclude `attachment` from `data`
+          video:          # exclude `video` from `data`
+          media:          # descend into `data.media`
+            url:          # exclude `url` from `data.media`
+```
+
+**Named sub-filter** — any non-reserved key in the config dict is a full `data_keys_select` config applied recursively to that key's value:
+
+```yaml
+    data_keys_select:
+      include: [message, data]      # top-level include
+      data:                         # sub-filter for `data`
+        include: [attachment, push]
+```
+
+Both forms can be combined freely and nest to any depth.
 
 !!! tip
     If using Generic to trigger bells, sirens or other noises, consider the [Chime Transport Adaptor](chime.md), which makes that easier, especially if working with a mix of audio devices. It has a similar set of known integrations, geared towards sounds rather than messages.

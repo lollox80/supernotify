@@ -33,9 +33,9 @@ from custom_components.supernotify.const import (
     TRANSPORT_GENERIC,
 )
 from custom_components.supernotify.model import (
+    DataFilter,
     DebugTrace,
     MessageOnlyPolicy,
-    SelectionRule,
     Target,
     TargetRequired,
     TransportConfig,
@@ -226,32 +226,12 @@ class GenericTransport(Transport):
                 action_data[ATTR_TARGET] = all_targets
 
         if prune_data and action_data:
-            action_data = customize_data(action_data, envelope.delivery)
+            action_data = envelope.customize_data(action_data)
         if not raw_mode and domain and service:
             # use the service schema to remove unsupported fields or force type
             action_data = self.context.hass_api.coerce_schema(domain, service, action_data)
 
         return await self.call_action(envelope, qualified_action, action_data=action_data, target_data=target_data or None)
-
-
-def customize_data(data: dict[str, Any], delivery: Delivery) -> dict[str, Any]:
-    if not data:
-        return data
-    top_selection_rule: SelectionRule | None = None
-    if delivery.options.get(OPTION_DATA_KEYS_SELECT):
-        top_selection_rule = SelectionRule(delivery.options.get(OPTION_DATA_KEYS_SELECT))
-    if top_selection_rule is None:
-        pruned: dict[str, Any] = data
-    else:
-        pruned = {}
-        for key in data:
-            if top_selection_rule is None or top_selection_rule.match(key):
-                pruned[key] = data[key]
-    if ATTR_DATA in pruned and not pruned[ATTR_DATA]:
-        # tidy up empty nested `data` maps
-        del pruned[ATTR_DATA]
-
-    return pruned
 
 
 @dataclass
@@ -265,7 +245,7 @@ def script(
     core_action_data: dict[str, Any],
     data: dict[str, Any],
     target: Target,
-    delivery: Delivery,
+    delivery: Delivery,  # noqa: ARG001
     hass_api: HomeAssistantAPI,
 ) -> list[MiniEnvelope]:
     """Customize `data` for script integration"""
@@ -276,7 +256,6 @@ def script(
         if "variables" in data:
             action_data["variables"].update(data.pop("variables"))
         action_data["variables"].update(data)
-        customize_data(action_data, delivery)
         action_data = hass_api.coerce_schema("script", qualified_action.replace("script.", ""), action_data)
         results.append(MiniEnvelope(action_data=action_data, target_data={ATTR_ENTITY_ID: target.domain_entity_ids("script")}))
     else:
@@ -298,7 +277,6 @@ def ntfy(
     results: list[MiniEnvelope] = []
     action_data: dict[str, Any] = dict(core_action_data)
     action_data.update(data)
-    customize_data(action_data, delivery)
     action_data = hass_api.coerce_schema("ntfy", "publish", action_data)
 
     if ATTR_PRIORITY in action_data and action_data[ATTR_PRIORITY] in PRIORITY_VALUES:
@@ -330,6 +308,10 @@ def ntfy(
                 call_data["call"] = phone
                 results.append(MiniEnvelope(action_data=call_data))
     notify_entities = target.domain_entity_ids(NOTIFY_DOMAIN)
+
+    rules = delivery.options.get(OPTION_DATA_KEYS_SELECT)
+    action_data = DataFilter(rules).apply(action_data)
+
     if not results or notify_entities:
         if len(results) == 1:
             results[0].target_data = {"entity_id": notify_entities}
@@ -350,7 +332,7 @@ def notify_events(
     results: list[MiniEnvelope] = []
     input_data: dict[str, Any] = dict(core_action_data)
     input_data.update(data)
-    customize_data(input_data, delivery)
+
     action_data: dict[str, Any] = {}
     action_data[ATTR_MESSAGE] = message
     priority_mapping: dict[str, str] = {
@@ -387,6 +369,8 @@ def notify_events(
         action_data[ATTR_DATA].setdefault("images", [])
         action_data[ATTR_DATA]["images"].append({"url": input_data.get(ATTR_MEDIA, {}).get(ATTR_MEDIA_SNAPSHOT_URL)})
 
+    rules = delivery.options.get(OPTION_DATA_KEYS_SELECT)
+    action_data = DataFilter(rules).apply(action_data)
     results.append(MiniEnvelope(action_data=dict(action_data)))
 
     return results

@@ -227,6 +227,7 @@ OPTION_DEVICE_LABEL_SELECT: Final[str] = "device_label_select"
 OPTION_DEVICE_AREA_SELECT: Final[str] = "device_area_select"
 OPTION_DEVICE_DISCOVERY: Final[str] = "device_discovery"
 
+MANUFACTURER_APPLE = "Apple"
 
 TARGET_REQUIRE_ALWAYS = "always"
 TARGET_REQUIRE_NEVER = "never"

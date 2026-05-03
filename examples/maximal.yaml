@@ -204,7 +204,7 @@ notify:
             unique_targets: true
             target_categories:
               - entity_id
-            target_include_re:
+            target_select:
               - "media_player\\.echo.*"
             device_discovery: true
             device_domain:

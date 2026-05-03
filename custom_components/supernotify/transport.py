@@ -18,12 +18,20 @@ from homeassistant.const import (
 from homeassistant.exceptions import IntegrationError
 from homeassistant.util import dt as dt_util
 
+from custom_components.supernotify.model import (
+    DebugTrace,
+    Target,
+    TargetRequired,
+    TransportConfig,
+    TransportFeature,
+)
+
 from .common import CallRecord
 from .const import (
     ATTR_ENABLED,
     CONF_DELIVERY_DEFAULTS,
 )
-from .model import DebugTrace, DeliveryConfig, SuppressionReason, Target, TargetRequired, TransportConfig, TransportFeature
+from .model import DeliveryConfig, SuppressionReason
 
 if TYPE_CHECKING:
     from homeassistant.helpers.typing import ConfigType

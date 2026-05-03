@@ -490,6 +490,105 @@ class SelectionRule:
         return True
 
 
+class DataFilter:
+    """Accepts a dict structure and returns a filtered copy, with arbitrary-depth key filtering.
+
+    Config format (same structure applies recursively at each level):
+      str | list   -- shorthand: include only keys matching these patterns
+      dict:
+        include: list[str]  -- include only keys matching these patterns
+        exclude: list[str]  -- exclude keys matching these patterns
+        exclude: dict       -- exclude tree: null value = exclude that key,
+                               dict value = keep key but apply tree recursively to its value
+        <key>: sub-config   -- any other key: sub-filter applied to that key's dict value
+
+    Patterns are matched with re.fullmatch. Sub-filter key lookup is exact (not regex).
+    include and exclude can be combined; any non-reserved key adds a sub-filter.
+    """
+
+    def __init__(self, config: str | list[str] | dict | None) -> None:
+        self._include: list[str] | None = None
+        self._exclude: list[str] | None = None
+        self._sub: dict[str, DataFilter] = {}
+        if config is None:
+            return
+        if isinstance(config, str):
+            self._include = [config]
+        elif isinstance(config, list):
+            self._include = config
+        else:
+            self._init_from_dict(config)
+
+    def _init_from_dict(self, config: dict) -> None:
+        include_val = config.get(SELECT_INCLUDE)
+        exclude_val = config.get(SELECT_EXCLUDE)
+        if isinstance(include_val, dict):
+            # include as dict: keys = include patterns, non-null values = sub-filters
+            self._include = list(include_val.keys())
+            for k, v in include_val.items():
+                if v is not None:
+                    self._sub[k] = DataFilter(v)
+        elif include_val is not None:
+            self._include = ensure_list(include_val)
+        if isinstance(exclude_val, dict):
+            excludes, subs = DataFilter._parse_exclude_tree(exclude_val)
+            self._exclude = excludes or None
+            self._sub.update(subs)
+        elif exclude_val is not None:
+            self._exclude = ensure_list(exclude_val)
+        for k, v in config.items():
+            if k in (SELECT_INCLUDE, SELECT_EXCLUDE) or k in self._sub:
+                continue
+            if isinstance(v, dict) and (SELECT_INCLUDE in v or SELECT_EXCLUDE in v):
+                # value is an explicit DataFilter config (has reserved keys) → sub-filter only, all keys pass
+                self._sub[k] = DataFilter(v)
+            else:
+                # null or value without reserved keys → include pattern (+ sub-filter if non-null)
+                if self._include is None:
+                    self._include = []
+                self._include.append(k)
+                if v is not None:
+                    self._sub[k] = DataFilter(v)
+
+    @staticmethod
+    def _parse_exclude_tree(tree: dict) -> tuple[list[str], dict[str, DataFilter]]:
+        excludes: list[str] = []
+        subs: dict[str, DataFilter] = {}
+        for k, v in tree.items():
+            if v is None:
+                excludes.append(k)
+            else:
+                subs[k] = DataFilter._exclude_tree_to_filter(v)
+        return excludes, subs
+
+    @staticmethod
+    def _exclude_tree_to_filter(tree: dict) -> DataFilter:
+        df = DataFilter(None)
+        excludes, subs = DataFilter._parse_exclude_tree(tree)
+        df._exclude = excludes or None
+        df._sub = subs
+        return df
+
+    def _match(self, key: str) -> bool:
+        if self._exclude is None and self._include is None:
+            return True
+        if self._exclude is not None and any(re.fullmatch(p, key) for p in self._exclude):
+            return False
+        return self._include is None or any(re.fullmatch(p, key) for p in self._include)
+
+    def apply(self, data: dict[str, Any], *, prune_empty: bool = False) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in data.items():
+            if not self._match(key):
+                continue
+            if key in self._sub and isinstance(value, dict):
+                value = self._sub[key].apply(value, prune_empty=prune_empty)
+            if prune_empty and value == {}:
+                continue
+            result[key] = value
+        return result
+
+
 class DeliveryConfig:
     """Shared config for transport defaults and Delivery definitions"""
 

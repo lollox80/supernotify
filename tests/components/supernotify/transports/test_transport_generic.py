@@ -30,10 +30,10 @@ from custom_components.supernotify.const import (
 )
 from custom_components.supernotify.delivery import Delivery
 from custom_components.supernotify.envelope import Envelope
-from custom_components.supernotify.model import Target
+from custom_components.supernotify.model import DataFilter, Target
 from custom_components.supernotify.notification import Notification
 from custom_components.supernotify.notify import SupernotifyAction
-from custom_components.supernotify.transports.generic import GenericTransport, customize_data
+from custom_components.supernotify.transports.generic import GenericTransport
 from tests.components.supernotify.hass_setup_lib import TestingContext
 
 
@@ -207,35 +207,54 @@ def test_prune_fields():
         uut,
     )
     delivery.upgrade_deprecations()
-    assert (
-        customize_data(
-            sample,
-            delivery,
-        )
-        == {}
-    )
-    assert customize_data(
-        {"fee": 123, "foo": 789},
-        delivery,
-    ) == {"fee": 123}
+    rules = delivery.options.get(OPTION_DATA_KEYS_SELECT)
 
-    assert customize_data(sample, Delivery("", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: "f.*"}}, uut)) == {"foo": 123}
-    assert customize_data(
-        sample, Delivery("", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: {SELECT_EXCLUDE: ["enabled"]}}}, uut)
-    ) == {
-        "foo": 123,
-        "bar": 789,
+    def f(data, config):
+        return DataFilter(config).apply(data, prune_empty=True)
+
+    assert f(sample, rules) == {}
+    assert f({"fee": 123, "foo": 789}, rules) == {"fee": 123}
+    assert f(sample, "f.*") == {"foo": 123}
+    assert f(sample, {SELECT_EXCLUDE: ["enabled"]}) == {"foo": 123, "bar": 789}
+    assert f({}, {SELECT_INCLUDE: ["f.*"], SELECT_EXCLUDE: ["enabled"]}) == {}
+
+    nested_sample = {
+        "message": "hello",
+        "title": "Test",
+        "data": {"attachment": {"url": "x"}, "push": {"all": True}, "actions": []},
     }
 
-    assert (
-        customize_data(
-            {},
-            Delivery(
-                "", {CONF_OPTIONS: {OPTION_DATA_KEYS_SELECT: {SELECT_INCLUDE: ["f.*"], SELECT_EXCLUDE: ["enabled"]}}}, uut
-            ),
-        )
-        == {}
-    )
+    # sub-filter via non-reserved key: include only 'attachment' within data
+    assert f(nested_sample, {"data": {SELECT_INCLUDE: ["attachment"]}}) == {
+        "message": "hello",
+        "title": "Test",
+        "data": {"attachment": {"url": "x"}},
+    }
+
+    # top-level include as dict + nested sub-filter
+    assert f(nested_sample, {SELECT_INCLUDE: {"message": None, "data": {"push": None}}}) == {
+        "message": "hello",
+        "data": {"push": {"all": True}},
+    }
+
+    # exclude tree: null = exclude key, dict = keep key but recurse
+    assert f(nested_sample, {SELECT_EXCLUDE: {"data": {"actions": None, "push": None}}}) == {
+        "message": "hello",
+        "title": "Test",
+        "data": {"attachment": {"url": "x"}},
+    }
+
+    # exclude tree combined with top-level include list
+    assert f(
+        nested_sample,
+        {SELECT_INCLUDE: ["message", "data"], SELECT_EXCLUDE: {"data": {"actions": None, "push": None}}},
+    ) == {"message": "hello", "data": {"attachment": {"url": "x"}}}
+
+    # multi-level exclude tree; empty sub-mappings are pruned
+    deep_sample = {"data": {"media": {"url": "x", "type": "image"}, "push": {}, "actions": []}}
+    assert f(deep_sample, {SELECT_EXCLUDE: {"data": {"actions": None, "media": {"url": None}}}}) == {
+        "data": {"media": {"type": "image"}}
+    }
 
 
 async def test_slack_notify() -> None:

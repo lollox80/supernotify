@@ -57,6 +57,8 @@ from custom_components.supernotify.const import (
     ATTR_MEDIA_CLIP_URL,
     ATTR_MEDIA_SNAPSHOT_URL,
     ATTR_MOBILE_APP_ID,
+    MANUFACTURER_APPLE,
+    OPTION_DATA_KEYS_SELECT,
     OPTION_DEVICE_DISCOVERY,
     OPTION_DEVICE_DOMAIN,
     OPTION_MESSAGE_USAGE,
@@ -130,6 +132,7 @@ class MobilePushTransport(Transport):
             OPTION_MESSAGE_USAGE: MessageOnlyPolicy.STANDARD,
             OPTION_TARGET_CATEGORIES: [ATTR_MOBILE_APP_ID],
             OPTION_DEVICE_DISCOVERY: False,
+            OPTION_DATA_KEYS_SELECT: None,
             OPTION_DEVICE_DOMAIN: ["mobile_app"],
         }
         return config
@@ -349,12 +352,14 @@ class MobilePushTransport(Transport):
             full_target = mobile_target if Target.is_notify_entity(mobile_target) else f"notify.{mobile_target}"
             mobile_info: DeviceInfo | None = self.context.hass_api.mobile_app_by_id(mobile_target)
             if mobile_info is None:
-                data.update(android_data)
-                data.update(ios_data)
-            elif mobile_info.manufacturer != "Apple":
-                data.update(android_data)
+                action_data[ATTR_DATA].update(android_data)
+                action_data[ATTR_DATA].update(ios_data)
+            elif mobile_info.manufacturer != MANUFACTURER_APPLE:
+                action_data[ATTR_DATA].update(android_data)
             else:
-                data.update(ios_data)
+                action_data[ATTR_DATA].update(ios_data)
+
+            action_data = envelope.customize_data(action_data)
 
             if clear_notification:
                 # Override message to "clear_notification" to dismiss same-tag notification on device
