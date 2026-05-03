@@ -15,8 +15,7 @@ description: Send out multiple notification types with the Frigate Blueprint, in
 ## Purpose
 
 The [Frigate Blueprint](https://github.com/SgtBatten/HA_blueprints/tree/6cffba9676ccfe58c5686bd96bf15a8237e1a3f9/Frigate_Camera_Notifications) is used to create mobile push notifications, with the image embedded
-and links to the Frigate UI. You need to have this also as email for family members without
-mobile push available.
+and links to the Frigate UI. You need to have this also as email for family members without mobile push available.
 
 ## Implementation
 
@@ -47,6 +46,4 @@ automations:
 - Use this anywhere else you want to get multiple notification channels without changing templates
 - Simplify automations and templates by moving complex setup and rules into Supernotify, such as using a single **Scenario** to configure dozens of automations
 - Have TTS or Alexa devices announce the notification too, using the `tts`, `alexa_devices` or `alexa_media_player` integrations, or have a sound alert via an Alexa or 433Mhz doorbell chime
-
-## Problems
-- The blueprint will create a `clip.mp4` link for iOS devices, however the [Frigate API Docs](https://docs.frigate.video/integrations/api/recording-clip-camera-name-start-start-ts-end-end-ts-clip-mp-4-get) recommended not doing this for iOS compatibility reasons, and using the `m8u` action link instead.
+- See also the [Fix Frigate Apple Push](fix_frigate_apple_push.md) recipe.
