@@ -4,6 +4,7 @@
 ### Mobile Push
 - Data sections can now be filtered in/out to any level of nesting
   - Common use case - trimming out values from Frigate blueprint like `attachment` or `video` that can result in broken thumbnails for Apple notifications
+  - [Fix Frigate Apple Push](recipes/fix_frigate_apple_push.md) reciped added.
 ## Generic
 - The nested support for `data` filtering introduced for Mobile Push introduced also for Generic transport
 ## Other

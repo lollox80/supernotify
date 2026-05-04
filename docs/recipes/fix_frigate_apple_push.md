@@ -9,11 +9,11 @@ tags:
   - apple
   - macos
   - blueprint
-title: Fix Frigate Blueprint Mobile Notification
-description: Fix broken images when sending mobile push notifications
-to Apple devices
+title: Fix Apple Notifications from Frigate Blueprint
+description: Fix broken images when sending mobile push notifications to Apple devices
 ---
-# Recipe - Frigate Blueprint Emails
+
+# Recipe - Fix Apple Notifications from Frigate Blueprint
 
 ## Purpose
 
@@ -22,9 +22,9 @@ and links to the Frigate UI.
 
 The blueprint creates a `clip.mp4` link for iOS devices, however the [Frigate API Docs](https://docs.frigate.video/integrations/api/recording-clip-camera-name-start-start-ts-end-end-ts-clip-mp-4-get) recommended not doing this for iOS compatibility reasons, and using the `m8u` action link instead.
 
-This results in broken images for notifications.
+This results in broken images for notifications, on iPhones, Macs or other Apple push notification targets.
 
-![Example Broken Image](../assets/images/broken_image_notification.png)
+![Example Broken Image](../assets/images/broken_image_notification.png){width=400}
 
 ## Implementation
 
