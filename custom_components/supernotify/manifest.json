@@ -3,10 +3,10 @@
     "name": "Supernotify",
     "after_dependencies": [
         "alexa_devices",
+        "http",
         "mobile_app",
         "mqtt",
         "smtp",
-        "http",
         "tod",
         "trace",
         "workday"
@@ -29,5 +29,5 @@
         "cachetools",
         "httpx"
     ],
-    "version":"1.16.0"
+    "version":"1.16.1"
 }
